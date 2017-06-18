@@ -1,12 +1,14 @@
 ﻿import {ClientPool} from "./clientPool";
-import {ClientConnection, OnMessage, OnMessageWithResponse} from "./common/clientConnection";
 import {Query, QueryParam} from "./common/query";
 import {GetPoolByNameResponse} from "./models/GetPoolByNameResponse";
 import {GetAllPoolsResponse} from "./models/GetAllPoolsResponse";
+import {OnMessage, OnMessageWithResponse, SocketLayer} from "./common/socketLayer";
+import {Swimmer} from "./swimmer";
 
 export class ClientBrokerManager {
     private pools: ClientPool[] = [];
-    public client: ClientConnection;
+    private swimmers: Swimmer[]=[];
+    public client: SocketLayer;
 
     public get MySwimmerId(): string {
         return this.client.Id;
@@ -18,7 +20,7 @@ export class ClientBrokerManager {
     private onMessageWithResponse: OnMessageWithResponse[] = [];
 
     public ConnectToBroker(ip: string): void {
-        this.client = new ClientConnection("127.0.0.1");
+        this.client = new SocketLayer("127.0.0.1", (swimmerId) => this.getSwimmerById(swimmerId));
         this.client.OnMessage.push((from, message) => this.onReceiveMessage(from, message));
         this.client.OnMessageWithResponse.push((from, message, respond) => this.onReceiveMessageWithResponse(from, message, respond));
         this.client.OnDisconnect.push(_ => this.invokeDisconnect());
@@ -46,7 +48,7 @@ export class ClientBrokerManager {
         this.onMessageWithResponse.push(callback);
     }
 
-    private onReceiveMessageWithResponse(from: ClientConnection, message: Query, respond: (query: Query) => void): void {
+    private onReceiveMessageWithResponse(from: Swimmer, message: Query, respond: (query: Query) => void): void {
         if (message.Contains("~ToSwimmer~")) {
             this.invokeMessageWithResponse(from, message, respond);
             return
@@ -68,7 +70,7 @@ export class ClientBrokerManager {
         }
     }
 
-    private onReceiveMessage(from: ClientConnection, message: Query): void {
+    private onReceiveMessage(from: Swimmer, message: Query): void {
         if (message.Contains("~ToSwimmer~")) {
             this.invokeMessage(from, message);
             return
@@ -96,10 +98,10 @@ export class ClientBrokerManager {
         query.Add("~ToSwimmer~", swimmerId);
         this.client.SendMessage(query);
     }
-    public SendMessageWithResponse<T>(swimmerId: string, query: Query, callback: (response: T) => void): void {
+    public SendMessageWithResponse(swimmerId: string, query: Query, callback: (response: Query) => void): void {
         query.Add("~ToSwimmer~", swimmerId);
         this.client.SendMessageWithResponse(query, (response) => {
-            callback(response.GetJson<T>());
+            callback(response);
         });
     }
     public GetPool(poolName: string, callback: (_: ClientPool) => void): void {
@@ -109,7 +111,7 @@ export class ClientBrokerManager {
                 var getPoolByNameResponse = response.GetJson<GetPoolByNameResponse>();
                 var pool: ClientPool = this.pools.filter(a => a.PoolName == getPoolByNameResponse.PoolName)[0];
                 if (pool == null) {
-                    this.pools.push(pool = new ClientPool(this, getPoolByNameResponse));
+                    this.pools.push(pool = new ClientPool(this, getPoolByNameResponse, (swimmerId) => this.getSwimmerById(swimmerId)));
                 }
                 pool.PoolName = getPoolByNameResponse.PoolName;
                 callback(pool);
@@ -128,13 +130,13 @@ export class ClientBrokerManager {
         this.client.ForceDisconnect();
     }
 
-    private invokeMessageWithResponse(from: ClientConnection, message: Query, respond: (query: Query) => void) {
+    private invokeMessageWithResponse(from: Swimmer, message: Query, respond: (query: Query) => void) {
         for (var i = 0; i < this.onMessageWithResponse.length; i++) {
             this.onMessageWithResponse[i](from, message, respond);
         }
     }
 
-    private invokeMessage(from: ClientConnection, message: Query) {
+    private invokeMessage(from: Swimmer, message: Query) {
         for (var i = 0; i < this.onMessage.length; i++) {
             this.onMessage[i](from, message);
         }
@@ -152,4 +154,12 @@ export class ClientBrokerManager {
         }
     }
 
+    getSwimmerById(swimmerId: string): Swimmer {
+        var swimmer = this.swimmers.filter(a => a.Id == swimmerId)[0];
+        if (swimmer == null) {
+            swimmer = new Swimmer(this.client, swimmerId);
+            this.swimmers.push(swimmer);
+        }
+        return swimmer;
+    }
 }

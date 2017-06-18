@@ -6,10 +6,10 @@ namespace BrokerServer
     public class ServerPool
     {
         public string Name { get; set; }
-        public List<SocketLayer> Swimmers { get; set; }
+        public List<Swimmer> Swimmers { get; set; }
 
         private int roundRobin = 0;
-        public SocketLayer GetRoundRobin()
+        public Swimmer GetRoundRobin()
         {
             if (Swimmers.Count == 0)
             {

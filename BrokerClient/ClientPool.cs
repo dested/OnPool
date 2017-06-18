@@ -8,9 +8,17 @@ namespace BrokerClient
     public class ClientPool
     {
         internal readonly ClientBrokerManager clientBrokerManager;
+        private readonly Func<string, Swimmer> _getSwimmer;
         public string PoolName { get; set; }
         internal OnMessage onMessage { get; set; }
         internal OnMessageWithResponse onMessageWithResponse { get; set; }
+
+        public ClientPool(ClientBrokerManager clientBrokerManager, GetPoolByNameResponse response, Func<string, Swimmer> getSwimmer)
+        {
+            this.clientBrokerManager = clientBrokerManager;
+            _getSwimmer = getSwimmer;
+            PoolName = response.PoolName;
+        }
         public void OnMessage(OnMessage callback)
         {
             onMessage += callback;
@@ -21,13 +29,7 @@ namespace BrokerClient
             onMessageWithResponse += callback;
         }
 
-        public ClientPool(ClientBrokerManager clientBrokerManager, GetPoolByNameResponse response)
-        {
-            this.clientBrokerManager = clientBrokerManager;
-            PoolName = response.PoolName;
-        }
-
-        public void GetSwimmers(Action<ClientPoolSwimmer[]> callback)
+        public void GetSwimmers(Action<Swimmer[]> callback)
         {
             var query = Query.Build("GetSwimmers", new QueryParam("PoolName", this.PoolName));
 
@@ -36,7 +38,7 @@ namespace BrokerClient
                 callback(
                     response.GetJson<GetSwimmerByPoolResponse>()
                         .Swimmers
-                        .Select(a => new ClientPoolSwimmer(this, a))
+                        .Select(a => _getSwimmer(a.Id))
                         .ToArray()
                 );
             });
@@ -66,22 +68,16 @@ namespace BrokerClient
             clientBrokerManager.client.SendMessage(query);
         }
 
-        public void SendMessageWithResponse<T>(Query query, Action<T> callback)
+        public void SendMessageWithResponse(Query query, Action<Query> callback)
         {
             query.Add("~ToPool~", PoolName);
-            clientBrokerManager.client.SendMessageWithResponse(query, (response) =>
-            {
-                callback(response.GetJson<T>());
-            });
+            clientBrokerManager.client.SendMessageWithResponse(query, callback);
         }
 
-        public void SendAllMessageWithResponse<T>(Query query, Action<T> callback)
+        public void SendAllMessageWithResponse(Query query, Action<Query> callback)
         {
             query.Add("~ToPoolAll~", PoolName);
-            clientBrokerManager.client.SendMessageWithResponse(query, (response) =>
-            {
-                callback(response.GetJson<T>());
-            });
+            clientBrokerManager.client.SendMessageWithResponse(query, callback);
         }
     }
 }

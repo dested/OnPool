@@ -1,59 +1,67 @@
 ﻿import {Query} from "./query";
 import * as net from "net";
 import {Utils} from "./utils";
+import { Swimmer } from "../swimmer";
 
-export type OnMessage = (client: ClientConnection, message: Query) => void;
-export type OnMessageWithResponse = (client: ClientConnection, message: Query, response: (query: Query) => void) => void;
+export type OnMessage = (from: Swimmer, message: Query) => void;
+export type OnMessageWithResponse = (from: Swimmer, message: Query, response: (query: Query) => void) => void;
 
-export class ClientConnection {
+export class SocketLayer {
     public Id: string;
     private disconnected: boolean = false;
     private serverIp: string;
-    public OnDisconnect: ((client: ClientConnection) => void)[] = [];
+    public OnDisconnect: ((client: SocketLayer) => void)[] = [];
     public OnMessage: OnMessage[] = [];
     public OnMessageWithResponse: OnMessageWithResponse[] = [];
+    _getSwimmer: (swimmerId: string) => Swimmer;
+
     client: net.Socket;
 
 
     poolAllCounter: { [key: string]: number } = {};
     messageResponses: { [key: string]: (query: Query) => void } = {};
 
-    constructor(serverIp: string) {
+    constructor(serverIp: string, getSwimmer: (swimmerId: string) => Swimmer) {
         this.serverIp = serverIp;
+        this._getSwimmer = getSwimmer;
     }
 
     public StartFromClient(): void {
         this.client = new net.Socket();
         this.client.setKeepAlive(true);
-        this.client.connect(1987, this.serverIp, () => {
-            // console.log('Connected');
-        });
+        this.client.connect(1987,
+            this.serverIp,
+            () => {
+                // console.log('Connected');
+            });
 
         let continueBuffer = '';
-        this.client.on('data', (bytes: Uint8Array) => {
-            let lastZero: number = 0;
+        this.client.on('data',
+            (bytes: Uint8Array) => {
+                let lastZero: number = 0;
 
-            for (let j = 0; j < bytes.length; j++) {
-                let b = bytes[j];
-                if (b == 0) {
-                    let piece = new Buffer(bytes.slice(lastZero, j - 1));
-                    let str: string = piece.toString("ascii");
-                    lastZero = j + 1;
-                    this.ReceiveResponse(continueBuffer + str);
-                    continueBuffer = "";
+                for (let j = 0; j < bytes.length; j++) {
+                    let b = bytes[j];
+                    if (b == 0) {
+                        let piece = new Buffer(bytes.slice(lastZero, j - 1));
+                        let str: string = piece.toString("ascii");
+                        lastZero = j + 1;
+                        this.ReceiveResponse(continueBuffer + str);
+                        continueBuffer = "";
+                    }
                 }
-            }
-            if (lastZero != bytes.length) {
-                let piece = new Buffer(bytes.slice(lastZero, bytes.length));
-                let str: string = piece.toString("ascii");
-                continueBuffer += str;
-            }
+                if (lastZero != bytes.length) {
+                    let piece = new Buffer(bytes.slice(lastZero, bytes.length));
+                    let str: string = piece.toString("ascii");
+                    continueBuffer += str;
+                }
 
-        });
+            });
 
-        this.client.on('close', () => {
-            // console.log('Connection closed');
-        });
+        this.client.on('close',
+            () => {
+                // console.log('Connection closed');
+            });
     }
 
 
@@ -70,10 +78,14 @@ export class ClientConnection {
             return false;
         }
 
+        if (this.Id != null)
+            message.Add("~FromSwimmer~", this.Id);
+
         try {
+
+
             this.client.write(message.ToString() + "\0");
-        }
-        catch (ex) {
+        } catch (ex) {
             console.log(`Send exception: ${ex}`);
             this.Disconnect();
             return false;
@@ -84,6 +96,9 @@ export class ClientConnection {
 
     private ReceiveResponse(payload: string): void {
         var query = Query.Parse(payload);
+
+        let fromSwimmer = this._getSwimmer(query.get("~FromSwimmer~"));
+
         if (query.Contains("~Response~")) {
             query.Remove("~Response~");
             if (this.messageResponses[query.get("~ResponseKey~")]) {
@@ -91,43 +106,37 @@ export class ClientConnection {
                 if (query.Contains("~PoolAllCount~")) {
                     if (!this.poolAllCounter[query.get("~ResponseKey~")]) {
                         this.poolAllCounter[query.get("~ResponseKey~")] = 1;
-                    }
-                    else {
-                        this.poolAllCounter[query.get("~ResponseKey~")] = this.poolAllCounter[query.get("~ResponseKey~")] + 1;
+                    } else {
+                        this.poolAllCounter[query.get("~ResponseKey~")] =
+                            this.poolAllCounter[query.get("~ResponseKey~")] + 1;
                     }
                     if (this.poolAllCounter[query.get("~ResponseKey~")] === parseInt(query.get("~PoolAllCount~"))) {
                         delete this.messageResponses[query.get("~ResponseKey~")];
                         delete this.poolAllCounter[query.get("~ResponseKey~")];
                     }
-                }
-                else {
+                } else {
                     delete this.messageResponses[query.get("~ResponseKey~")];
                 }
                 query.Remove("~ResponseKey~");
                 callback(query);
-            }
-            else {
+            } else {
                 throw "Cannot find response callback";
             }
-        }
-        else if (query.Contains("~ResponseKey~")) {
+        } else if (query.Contains("~ResponseKey~")) {
             var receiptId = query.get("~ResponseKey~");
             query.Remove("~ResponseKey~");
 
-
-            for (let i = 0; i < this.OnMessageWithResponse.length; i++) {
-                this.OnMessageWithResponse[i](this, query, (queryResponse) => {
+            this.invokeMessageWithResponse(fromSwimmer,
+                query,
+                (queryResponse) => {
                     queryResponse.Add("~Response~");
                     queryResponse.Add("~ResponseKey~", receiptId);
                     this.SendMessage(queryResponse);
                 });
-            }
 
-        }
-        else {
-            for (let i = 0; i < this.OnMessage.length; i++) {
-                this.OnMessage[i](this, query);
-            }
+
+        } else {
+            this.invokeMessage(fromSwimmer, query);
         }
 
     }
@@ -144,6 +153,18 @@ export class ClientConnection {
         this.disconnected = true;
         for (let i = 0; i < this.OnDisconnect.length; i++) {
             this.OnDisconnect[i](this);
+        }
+    }
+
+    invokeMessageWithResponse(from: Swimmer, query: Query, response: (queryResponse: Query) => void): void {
+        for (let i = 0; i < this.OnMessageWithResponse.length; i++) {
+            this.OnMessageWithResponse[i](from, query, response);
+        }
+    }
+
+    invokeMessage(from: Swimmer, query: Query): void {
+        for (let i = 0; i < this.OnMessageWithResponse.length; i++) {
+            this.OnMessage[i](from, query);
         }
     }
 }

@@ -50,9 +50,9 @@ if (shouldRunTests) {
                     pool.SendMessage(Query.Build("CreateGame", new QueryParam("Name", "B")));
                     pool.SendAllMessage(Query.Build("WakeUp"));
 
-                    pool.SendMessageWithResponse<string>(Query.Build("CreateName"), (message) => {
+                    pool.SendMessageWithResponse(Query.Build("CreateName"), (message) => {
                     });
-                    pool.SendAllMessageWithResponse<string>(Query.Build("WakeUp"), (message) => {
+                    pool.SendAllMessageWithResponse(Query.Build("WakeUp"), (message) => {
                     });
                 });
             });

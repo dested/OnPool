@@ -9,6 +9,7 @@ namespace BrokerServer
     {
         private readonly Action<SocketLayer> _addClient;
         private readonly Action<SocketLayer> _removeClient;
+        private readonly Func<string, Swimmer> _getSwimmer;
         private readonly OnMessage _clientMessage;
         private readonly OnMessageWithResponse _clientMessageWithResponse;
         private Socket server;
@@ -16,12 +17,14 @@ namespace BrokerServer
         public ServerManager(
             Action<SocketLayer> addClient,
             Action<SocketLayer> removeClient,
+            Func<string,Swimmer> getSwimmer,
             OnMessage clientMessage,
             OnMessageWithResponse clientMessageWithResponse
             )
         {
             _addClient = addClient;
             _removeClient = removeClient;
+            _getSwimmer = getSwimmer;
             _clientMessage = clientMessage;
             _clientMessageWithResponse = clientMessageWithResponse;
         }
@@ -42,7 +45,7 @@ namespace BrokerServer
 
         private void NewConnection(Socket socket)
         {
-            var client = new SocketLayer(socket);
+            var client = new SocketLayer(socket, _getSwimmer);
             client.Start();
             Console.WriteLine("Connected Client " + client.Id);
             _addClient(client);

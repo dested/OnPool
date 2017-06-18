@@ -10,8 +10,8 @@ using System.Threading.Tasks;
 
 namespace BrokerCommon
 {
-    public delegate void OnMessage(SocketLayer from, Query message);
-    public delegate void OnMessageWithResponse(SocketLayer from, Query message, Action<Query> respond);
+    public delegate void OnMessage(Swimmer from, Query message);
+    public delegate void OnMessageWithResponse(Swimmer from, Query message, Action<Query> respond);
 
 
     public class SocketLayer
@@ -19,6 +19,7 @@ namespace BrokerCommon
         public string Id { get; set; }
         private bool disconnected = false;
         private Socket socket;
+        private readonly Func<string, Swimmer> _getSwimmer;
 
         private LocalBackgroundWorker<object, WorkerResponse> awaitMessagesWorker;
         private string serverIp;
@@ -28,16 +29,18 @@ namespace BrokerCommon
         public OnMessageWithResponse OnMessageWithResponse { get; set; }
         public static int counter = 0;
 
-        public SocketLayer(Socket socket)
+        public SocketLayer(Socket socket, Func<string, Swimmer> getSwimmer)
         {
             this.socket = socket;
+            _getSwimmer = getSwimmer;
             Id = Guid.NewGuid().ToString("N");
         }
 
 
-        public SocketLayer(string serverIp)
+        public SocketLayer(string serverIp, Func<string, Swimmer> getSwimmer)
         {
             this.serverIp = serverIp;
+            _getSwimmer = getSwimmer;
         }
 
 
@@ -70,6 +73,17 @@ namespace BrokerCommon
                     case WorkerResult.Message:
 
                         var query = Query.Parse(response.Payload);
+
+                        Swimmer fromSwimmer;
+                        if (query.Contains("~FromSwimmer~"))
+                        {
+                            fromSwimmer = this._getSwimmer(query["~FromSwimmer~"]);
+                        }
+                        else
+                        {
+                            fromSwimmer = this._getSwimmer(Id);
+                        }
+                    
 
                         if (query.Contains("~Response~"))
                         {
@@ -112,7 +126,7 @@ namespace BrokerCommon
                         {
                             var receiptId = query["~ResponseKey~"];
                             query.Remove("~ResponseKey~");
-                            OnMessageWithResponse?.Invoke(this, query, (queryResponse) =>
+                            OnMessageWithResponse?.Invoke(fromSwimmer, query, (queryResponse) =>
                                 {
                                     queryResponse.Add("~Response~");
                                     queryResponse.Add("~ResponseKey~", receiptId);
@@ -122,7 +136,7 @@ namespace BrokerCommon
                         }
                         else
                         {
-                            OnMessage?.Invoke(this, query);
+                            OnMessage?.Invoke(fromSwimmer, query);
                         }
                         break;
                     case WorkerResult.Disconnect:
@@ -169,6 +183,9 @@ namespace BrokerCommon
                 Disconnect();
                 return false;
             }
+
+            if (this.Id != null && !message.Contains("~FromSwimmer~"))
+                message["~FromSwimmer~"] = this.Id;
 
             byte[] msg = Encoding.ASCII.GetBytes(message + "\0");
 

@@ -12,15 +12,15 @@ namespace BrokerServer
 
         GetAllPoolsResponse GetAllPools();
         GetPoolByNameResponse GetPoolByName(string poolName);
-        void JoinPool(SocketLayer client, string poolName);
+        void JoinPool(Swimmer client, string poolName);
         GetSwimmerByPoolResponse GetSwimmersInPool(string poolName);
 
-        void SendMessageToSwimmerWithResponse(Query query, Action<Query> respond);
-        void SendMessageToPoolWithResponse(Query query, Action<Query> respond);
-        void SendMessageToPoolAllWithResponse(Query query, Action<Query> respond);
+        void ForwardMessageToSwimmerWithResponse(Query query, Action<Query> respond);
+        void ForwardMessageToPoolWithResponse(Query query, Action<Query> respond);
+        void ForwardMessageToPoolAllWithResponse(Query query, Action<Query> respond);
 
-        void SendMessageToSwimmer(Query query);
-        void SendMessageToPool(Query query);
-        void SendMessageToPoolAll(Query query);
+        void ForwardMessageToSwimmer(Query query);
+        void ForwardMessageToPool(Query query);
+        void ForwardMessageToPoolAll(Query query);
     }
 }

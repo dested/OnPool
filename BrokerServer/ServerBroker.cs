@@ -9,7 +9,7 @@ namespace BrokerServer
     public class ServerBroker : IServerBroker
     {
         private ServerManager serverManager;
-        private List<SocketLayer> Swimmers = new List<SocketLayer>();
+        private List<Swimmer> Swimmers = new List<Swimmer>();
         private List<ServerPool> Pools { get; set; } = new List<ServerPool>();
 
         public ServerBroker()
@@ -17,6 +17,7 @@ namespace BrokerServer
             this.serverManager = new ServerManager(
                 AddSwimmer,
                 RemoveSwimmer,
+                GetSwimmer,
                 ClientMessage,
                 ClientMessageWithResponse
             );
@@ -24,21 +25,21 @@ namespace BrokerServer
         }
 
 
-        private void ClientMessage(SocketLayer client, Query query)
+        private void ClientMessage(Swimmer swimmer, Query query)
         {
             if (query.Contains("~ToSwimmer~"))
             {
-                SendMessageToSwimmer(query);
+                ForwardMessageToSwimmer(query);
                 return;
             }
             if (query.Contains("~ToPool~"))
             {
-                SendMessageToPool(query);
+                ForwardMessageToPool(query);
                 return;
             }
             if (query.Contains("~ToPoolAll~"))
             {
-                SendMessageToPoolAll(query);
+                ForwardMessageToPoolAll(query);
                 return;
             }
 
@@ -46,21 +47,21 @@ namespace BrokerServer
 
         }
 
-        private void ClientMessageWithResponse(SocketLayer client, Query query, Action<Query> respond)
+        private void ClientMessageWithResponse(Swimmer swimmer, Query query, Action<Query> respond)
         {
             if (query.Contains("~ToSwimmer~"))
             {
-                SendMessageToSwimmerWithResponse(query, respond);
+                ForwardMessageToSwimmerWithResponse(query, respond);
                 return;
             }
             if (query.Contains("~ToPool~"))
             {
-                SendMessageToPoolWithResponse(query, respond);
+                ForwardMessageToPoolWithResponse(query, respond);
                 return;
             }
             if (query.Contains("~ToPoolAll~"))
             {
-                SendMessageToPoolAllWithResponse(query, respond);
+                ForwardMessageToPoolAllWithResponse(query, respond);
                 return;
             }
 
@@ -69,7 +70,7 @@ namespace BrokerServer
             {
                 case "GetSwimmerId":
                     {
-                        respond(Query.Build(query.Method, client.Id));
+                        respond(Query.Build(query.Method, swimmer.Id));
                         break;
                     }
                 case "GetAllPools":
@@ -88,7 +89,7 @@ namespace BrokerServer
 
                 case "JoinPool":
                     {
-                        JoinPool(client, query["PoolName"]);
+                        JoinPool(swimmer, query["PoolName"]);
                         respond(Query.Build(query.Method));
                         break;
                     }
@@ -106,18 +107,24 @@ namespace BrokerServer
 
         public void AddSwimmer(SocketLayer client)
         {
-            this.Swimmers.Add(client);
+            var swimmer = new Swimmer(client, client.Id);
+            this.Swimmers.Add(swimmer);
+        }
+        public Swimmer GetSwimmer(string id)
+        {
+            return this.Swimmers.FirstOrDefault(a => a.Id == id);
         }
 
         public void RemoveSwimmer(SocketLayer client)
         {
-            this.Swimmers.Remove(client);
+            var swimmer = this.Swimmers.First(a => a.Id == client.Id);
+            this.Swimmers.Remove(swimmer);
             for (var index = Pools.Count - 1; index >= 0; index--)
             {
                 var serverPool = Pools[index];
-                if (serverPool.Swimmers.Contains(client))
+                if (serverPool.Swimmers.Contains(swimmer))
                 {
-                    serverPool.Swimmers.Remove(client);
+                    serverPool.Swimmers.Remove(swimmer);
                     if (serverPool.Swimmers.Count == 0)
                     {
                         Pools.Remove(serverPool);
@@ -152,14 +159,14 @@ namespace BrokerServer
             {
                 Pools.Add(pool = new ServerPool()
                 {
-                    Swimmers = new List<SocketLayer>(),
+                    Swimmers = new List<Swimmer>(),
                     Name = poolName
                 });
             }
             return pool;
         }
 
-        public void JoinPool(SocketLayer client, string poolName)
+        public void JoinPool(Swimmer client, string poolName)
         {
             var pool = getPoolByName(poolName);
             if (pool.Swimmers.Contains(client)) return;
@@ -176,22 +183,22 @@ namespace BrokerServer
             };
         }
 
-        public void SendMessageToSwimmerWithResponse(Query query, Action<Query> respond)
+        public void ForwardMessageToSwimmerWithResponse(Query query, Action<Query> respond)
         {
             var swimmer = this.Swimmers.FirstOrDefault(a => a.Id == query["~ToSwimmer~"]);
-            swimmer?.SendMessageWithResponse(query, respond);
+            swimmer?.Client.SendMessageWithResponse(query, respond);
         }
 
-        public void SendMessageToPoolWithResponse(Query query, Action<Query> respond)
+        public void ForwardMessageToPoolWithResponse(Query query, Action<Query> respond)
         {
             var poolName = query["~ToPool~"];
             var pool = getPoolByName(poolName);
-            var clientConnection = pool.GetRoundRobin();
+            var swimmer = pool.GetRoundRobin();
             var rQuery = new Query(query);
-            clientConnection?.SendMessageWithResponse(rQuery, respond);
+            swimmer?.Client.SendMessageWithResponse(rQuery, respond);
         }
 
-        public void SendMessageToPoolAllWithResponse(Query query, Action<Query> respond)
+        public void ForwardMessageToPoolAllWithResponse(Query query, Action<Query> respond)
         {
             var poolName = query["~ToPoolAll~"];
             var pool = getPoolByName(poolName);
@@ -201,33 +208,33 @@ namespace BrokerServer
                 var swimmer = swimmers[index];
                 var rQuery = new Query(query);
                 rQuery.Add("~PoolAllCount~", swimmers.Length.ToString());
-                swimmer.SendMessageWithResponse(rQuery, respond);
+                swimmer.Client.SendMessageWithResponse(rQuery, respond);
             }
         }
 
-        public void SendMessageToSwimmer(Query query)
+        public void ForwardMessageToSwimmer(Query query)
         {
             var swimmer = this.Swimmers.FirstOrDefault(a => a.Id == query["~ToSwimmer~"]);
-            swimmer?.SendMessage(query);
+            swimmer?.Client.SendMessage(query);
         }
 
-        public void SendMessageToPool(Query query)
+        public void ForwardMessageToPool(Query query)
         {
             var poolName = query["~ToPool~"];
             var pool = getPoolByName(poolName);
             var clientConnection = pool.GetRoundRobin();
             var rQuery = new Query(query);
-            clientConnection?.SendMessage(rQuery);
+            clientConnection?.Client.SendMessage(rQuery);
         }
 
-        public void SendMessageToPoolAll(Query query)
+        public void ForwardMessageToPoolAll(Query query)
         {
             var poolName = query["~ToPoolAll~"];
             var pool = getPoolByName(poolName);
             foreach (var clientConnection in pool.Swimmers)
             {
                 var rQuery = new Query(query);
-                clientConnection.SendMessage(rQuery);
+                clientConnection.Client.SendMessage(rQuery);
             }
         }
 

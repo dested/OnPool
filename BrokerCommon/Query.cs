@@ -6,7 +6,7 @@ using System.Text;
 
 namespace BrokerCommon
 {
-//    [DebuggerStepThrough]
+    [DebuggerStepThrough]
     public class Query
     {
         private Query(string method, params QueryParam[] queryParams)
@@ -24,7 +24,12 @@ namespace BrokerCommon
         public string Method { get; set; }
         private Dictionary<string, string> QueryParams { get; set; }
 
-        public string this[string key] => QueryParams[key];
+        public string this[string key]
+        {
+            get { return QueryParams[key]; }
+            set { QueryParams[key] = value; }
+        }
+
         public bool Contains(string key) { return QueryParams.ContainsKey(key); }
         public void Add(string key, string value)
         {
