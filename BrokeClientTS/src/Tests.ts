@@ -240,6 +240,46 @@ export class Tests {
     }
 
 
+    public TestSlammer(testPass: () => void, testFail: (reason: string) => void): void {
+
+        for (let i = 0; i < 10; i++) {
+            this.BuildClientManager((manager) => {
+                manager.OnReady(() => {
+                    manager.GetPool("GameServers",
+                        pool1 => {
+                            pool1.OnMessageWithResponse((q, respond) => {
+                                this.assertAreEqual(q.Method, "Bar", testFail);
+                                this.assertAreEqual(q.GetJson<number>(), 13, testFail);
+                                respond(q.RespondWithJson(14));
+                            });
+
+                            pool1.JoinPool(() => {
+                            });
+                        });
+                });
+            });
+        }
+
+
+        this.BuildClientManager((manager) => {
+            manager.OnReady(() => {
+                manager.GetPool("GameServers",
+                    pool3 => {
+                        var exec=() => {
+                            pool3.SendMessageWithResponse<number>(Query.BuildWithJson("Bar", 13),
+                                (m) => {
+                                    this.assertAreEqual(m, 14, testFail);
+                                    exec();
+                                });
+                        }
+                        exec();
+
+                    });
+            });
+        });
+    }
+
+
     private clients: ClientBrokerManager[] = [];
 
     private BuildClientManager(ready: (_: ClientBrokerManager) => void): void {

@@ -27,6 +27,18 @@ namespace BrokerServer
         public void RemoveSwimmer(ClientConnection client)
         {
             this.Swimmers.Remove(client);
+            for (var index = Pools.Count - 1; index >= 0; index--)
+            {
+                var serverPool = Pools[index];
+                if (serverPool.Swimmers.Contains(client))
+                {
+                    serverPool.Swimmers.Remove(client);
+                    if (serverPool.Swimmers.Count == 0)
+                    {
+                        Pools.Remove(serverPool);
+                    }
+                }
+            }
         }
 
         public GetAllPoolsResponse GetAllPools()

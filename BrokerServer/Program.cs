@@ -15,7 +15,8 @@ namespace BrokerServer
 
             var threadManager = LocalThreadManager.Start();
             var broker = new ServerBroker();
-  /*          Task.Run(() =>
+/*
+            Task.Run(() =>
             {
                 while (true)
                 {
@@ -23,7 +24,8 @@ namespace BrokerServer
                     Console.WriteLine(ClientConnection.counter);
                     ClientConnection.counter = 0;
                 }
-            });*/
+            });
+*/
             threadManager.Process();
         }
     }
