@@ -8,6 +8,7 @@ namespace BrokerServer
     public class ServerManager
     {
         private readonly IServerBroker serverBroker;
+        private TcpListener server;
 
         public ServerManager(IServerBroker serverBroker)
         {
@@ -16,8 +17,6 @@ namespace BrokerServer
 
         public void StartServer()
         {
-
-            TcpListener server = null;
 
             var port = 1987;
             IPAddress localAddr = IPAddress.Parse("127.0.0.1");
@@ -69,7 +68,6 @@ namespace BrokerServer
         {
             if (query.Contains("~ToSwimmer~"))
             {
-//                query.Add("~FromSwimmer~", client.Id);
                 this.serverBroker.SendMessageToSwimmerWithResponse(query, respond);
                 return;
             }
@@ -161,6 +159,11 @@ namespace BrokerServer
         {
             Console.WriteLine($"Client {client.Id} Disconnected");
             serverBroker.RemoveSwimmer(client);
+        }
+
+        public void Disconnect()
+        {
+            server.Stop();
         }
     }
 }

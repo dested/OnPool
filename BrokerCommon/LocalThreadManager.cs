@@ -5,9 +5,11 @@ namespace BrokerCommon
     public class LocalThreadManager
     {
         private static LocalThreadManager _instance;
+        private bool alive { get; set; }
 
         private LocalThreadManager()
         {
+            alive = true;
         }
 
         public static LocalThreadManager Start()
@@ -23,7 +25,7 @@ namespace BrokerCommon
 
         public void Process()
         {
-            while (true)
+            while (alive)
             {
 
                 var tempWorkers = workers.ToArray();
@@ -39,9 +41,15 @@ namespace BrokerCommon
             }
         }
 
+
         public void AddWorker(ILocalBackgroundWorker worker)
         {
             this.workers.Add(worker);
+        }
+
+        public void Kill()
+        {
+            this.alive = false;
         }
     }
 }

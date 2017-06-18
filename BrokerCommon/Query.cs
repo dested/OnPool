@@ -64,6 +64,7 @@ namespace BrokerCommon
             qp.AddRange(queryParams);
             return new Query(method, qp.ToArray());
         }
+     
 
         public static Query Parse(string message)
         {
@@ -78,15 +79,25 @@ namespace BrokerCommon
             return new Query(messageSplit[0], qparams.ToArray());
         }
 
+        public  Query Respond(params QueryParam[] queryParams)
+        {
+            return new Query(Method, queryParams);
+        }
+        public Query Respond<T>(T json, params QueryParam[] queryParams)
+        {
+            var qp = new List<QueryParam>() { new QueryParam("Json", json.ToJson()) };
+            qp.AddRange(queryParams);
+            return new Query(Method, qp.ToArray());
+        }
 
 
-        public T GetJson<T>() where T : class
+        public T GetJson<T>()
         {
             if (Contains("Json"))
             {
                 return QueryParams["Json"].FromJson<T>();
             }
-            return null;
+            return default(T);
         }
 
     }

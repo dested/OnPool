@@ -15,8 +15,9 @@ namespace BrokerServer
             {
                 return null;
             }
+            var swimmer = Swimmers[roundRobin];
             roundRobin = (roundRobin + 1) % Swimmers.Count;
-            return Swimmers[roundRobin];
+            return swimmer;
         }
     }
 }

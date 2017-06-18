@@ -21,6 +21,7 @@ namespace BrokerCommon
         public Action<ClientConnection> OnDisconnect { get; set; }
         public Action<ClientConnection, Query> OnMessage { get; set; }
         public Action<ClientConnection, Query, Action<Query>> OnMessageWithResponse { get; set; }
+        public static int counter = 0;
 
         public ClientConnection(TcpClient tcpClient)
         {
@@ -55,9 +56,10 @@ namespace BrokerCommon
             awaitMessagesWorker.Run();
         }
 
-
+        Dictionary<string, int> poolAllCounter = new Dictionary<string, int>();
         private void ReceiveResponse(WorkerResponse response)
         {
+            counter++;
             switch (response.Result)
             {
                 case WorkerResult.Message:
@@ -70,7 +72,28 @@ namespace BrokerCommon
                         if (messageResponses.ContainsKey(query["~ResponseKey~"]))
                         {
                             var callback = messageResponses[query["~ResponseKey~"]];
-                            messageResponses.Remove(query["~ResponseKey~"]);
+
+                            if (query.Contains("~PoolAllCount~"))
+                            {
+                                if (!poolAllCounter.ContainsKey(query["~ResponseKey~"]))
+                                {
+                                    poolAllCounter[query["~ResponseKey~"]] = 1;
+                                }
+                                else
+                                {
+                                    poolAllCounter[query["~ResponseKey~"]] = poolAllCounter[query["~ResponseKey~"]] + 1;
+                                }
+
+                                if (poolAllCounter[query["~ResponseKey~"]] == int.Parse(query["~PoolAllCount~"]))
+                                {
+                                    messageResponses.Remove(query["~ResponseKey~"]);
+                                    poolAllCounter.Remove(query["~ResponseKey~"]);
+                                }
+                            }
+                            else
+                            {
+                                messageResponses.Remove(query["~ResponseKey~"]);
+                            }
                             query.Remove("~ResponseKey~");
                             callback(query);
                         }
@@ -86,10 +109,6 @@ namespace BrokerCommon
                         OnMessageWithResponse?.Invoke(this, query, (queryResponse) =>
                             {
                                 queryResponse.Add("~Response~");
-                               /* if (query.Contains("~FromSwimmer~"))
-                                {
-                                    queryResponse.Add("~FromSwimmer~",query["~FromSwimmer~"]);
-                                }*/
                                 queryResponse.Add("~ResponseKey~", receiptId);
                                 SendMessage(queryResponse);
                             }
@@ -210,5 +229,10 @@ namespace BrokerCommon
         }
 
 
+        public void ForceDisconnect()
+        {
+            this.tcpClient.Close();
+            this.Disconnect();
+        }
     }
 }

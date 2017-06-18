@@ -19,66 +19,88 @@ namespace BrokerClient
         private List<BrokerPool> pools { get; } = new List<BrokerPool>();
         public string MySwimmerId => client.Id;
 
-        public Action OnDisconnect { get; set; }
-        public Action OnReady { get; set; }
-        public Action<Query> OnMessage { get; set; }
-        public Action<Query, Action<Query>> OnMessageWithResponse { get; set; }
+        private Action onReady;
+        private Action onDisconnect { get; set; }
+        private Action<Query> onMessage { get; set; }
+        private Action<Query, Action<Query>> onMessageWithResponse { get; set; }
 
 
         public void ConnectToBroker(string ip)
         {
             client = new ClientConnection("127.0.0.1");
-            client.OnMessage += (_, message) => onMessage(message);
-            client.OnMessageWithResponse += (_, message, respond) => onMessageWithResponse(message, respond);
-            client.OnDisconnect += _ => OnDisconnect?.Invoke();
+            client.OnMessage += (_, message) => onReceiveMessage(message);
+            client.OnMessageWithResponse += (_, message, respond) => onReceiveMessageWithResponse(message, respond);
+            client.OnDisconnect += _ => onDisconnect?.Invoke();
             client.StartFromClient();
             GetSwimmerId((id) =>
             {
                 client.Id = id;
-                this.OnReady?.Invoke();
+                this.onReady?.Invoke();
             });
         }
 
-        private void onMessageWithResponse(Query query, Action<Query> respond)
+        public void OnReady(Action callback)
+        {
+            this.onReady = callback;
+        }
+        public void OnDisconnect(Action callback)
+        {
+            this.onDisconnect = callback;
+        }
+
+        public void OnMessage(Action<Query> callback)
+        {
+            onMessage += callback;
+        }
+        public void OnMessageWithResponse(Action<Query, Action<Query>> callback)
+        {
+            onMessageWithResponse += callback;
+        }
+
+        private void onReceiveMessageWithResponse(Query query, Action<Query> respond)
         {
             if (query.Contains("~ToSwimmer~"))
             {
-                OnMessageWithResponse?.Invoke(query, respond);
+                onMessageWithResponse?.Invoke(query, respond);
                 return;
             }
             if (query.Contains("~ToPool~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPool~"]);
-                pool?.OnMessageWithResponse?.Invoke(query, respond);
+                pool?.onMessageWithResponse?.Invoke(query, respond);
                 return;
             }
             if (query.Contains("~ToPoolAll~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPoolAll~"]);
-                pool?.OnMessageWithResponse?.Invoke(query, respond);
+                pool?.onMessageWithResponse?.Invoke(query, (res) =>
+                {
+                    res.Add("~PoolAllCount~",query["~PoolAllCount~"]);
+                    respond(res);
+                });
                 return;
             }
         }
 
 
 
-        private void onMessage(Query query)
+        private void onReceiveMessage(Query query)
         {
             if (query.Contains("~ToSwimmer~"))
             {
-                OnMessage?.Invoke(query);
+               onMessage?.Invoke(query);
                 return;
             }
             if (query.Contains("~ToPool~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPool~"]);
-                pool?.OnMessage(query);
+                pool?.onMessage.Invoke(query);
                 return;
             }
             if (query.Contains("~ToPoolAll~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPoolAll~"]);
-                pool?.OnMessage(query);
+                pool?.onMessage.Invoke(query);
                 return;
             }
         }
@@ -121,6 +143,11 @@ namespace BrokerClient
             {
                 callback(response.GetJson<GetAllPoolsResponse>());
             });
+        }
+
+        public void Disconnet()
+        {
+            client.ForceDisconnect();
         }
     }
 }

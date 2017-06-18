@@ -92,7 +92,6 @@ namespace BrokerServer
             var pool = getPoolByName(poolName);
             var clientConnection = pool.GetRoundRobin();
             var rQuery = new Query(query);
-//            rQuery.Add("~FromSwimmer~", clientConnection.Id);
             clientConnection?.SendMessageWithResponse(rQuery, respond);
         }
 
@@ -100,11 +99,13 @@ namespace BrokerServer
         {
             var poolName = query["~ToPoolAll~"];
             var pool = getPoolByName(poolName);
-            foreach (var clientConnection in pool.Swimmers)
+            var swimmers = pool.Swimmers.ToArray();
+            for (var index = 0; index < swimmers.Length; index++)
             {
+                var swimmer = swimmers[index];
                 var rQuery = new Query(query);
-//                rQuery.Add("~FromSwimmer~", clientConnection.Id);
-                clientConnection.SendMessageWithResponse(rQuery, respond);
+                rQuery.Add("~PoolAllCount~", swimmers.Length.ToString());
+                swimmer.SendMessageWithResponse(rQuery, respond);
             }
         }
 
@@ -120,7 +121,6 @@ namespace BrokerServer
             var pool = getPoolByName(poolName);
             var clientConnection = pool.GetRoundRobin();
             var rQuery = new Query(query);
-//            rQuery.Add("~FromSwimmer~", clientConnection.Id);
             clientConnection?.SendMessage(rQuery);
         }
 
@@ -131,10 +131,13 @@ namespace BrokerServer
             foreach (var clientConnection in pool.Swimmers)
             {
                 var rQuery = new Query(query);
-//                rQuery.Add("~FromSwimmer~", clientConnection.Id);
                 clientConnection.SendMessage(rQuery);
             }
         }
 
+        public void Disconnect()
+        {
+            serverManager.Disconnect();
+        }
     }
 }

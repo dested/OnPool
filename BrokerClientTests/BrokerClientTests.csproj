@@ -62,6 +62,10 @@
       <Project>{895ED083-B79F-42E9-BF6F-870DA993962D}</Project>
       <Name>BrokerCommon</Name>
     </ProjectReference>
+    <ProjectReference Include="..\BrokerServer\BrokerServer.csproj">
+      <Project>{56E47CBA-A6E3-4FF1-BABF-DBD353B80765}</Project>
+      <Name>BrokerServer</Name>
+    </ProjectReference>
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">

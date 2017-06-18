@@ -1,5 +1,8 @@
+using System.Diagnostics;
+
 namespace BrokerCommon
-{
+{ 
+    [DebuggerStepThrough]
     internal class WorkerResponse
     {
         public WorkerResult Result { get; set; }

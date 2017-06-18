@@ -11,9 +11,16 @@ namespace BrokerClient
         private bool joinedPool = false;
         public string PoolName { get; set; }
         public int NumberOfSwimmers { get; set; }
-        public Action<Query> OnMessage { get; set; }
-        public Action<Query,Action<Query>> OnMessageWithResponse { get; set; }
-
+        public Action<Query> onMessage { get; set; }
+        public Action<Query,Action<Query>> onMessageWithResponse { get; set; }
+        public void OnMessage(Action<Query> callback)
+        {
+            onMessage += callback;
+        }
+        public void OnMessageWithResponse(Action<Query, Action<Query>> callback)
+        {
+            onMessageWithResponse += callback;
+        }
         public BrokerPool(ClientBrokerManager clientBrokerManager, GetPoolByNameResponse response)
         {
             this.clientBrokerManager = clientBrokerManager;
@@ -59,7 +66,7 @@ namespace BrokerClient
             clientBrokerManager.client.SendMessage(query);
         }
 
-        public void SendMessageWithResponse<T>(Query query, Action<T> callback) where T:class
+        public void SendMessageWithResponse<T>(Query query, Action<T> callback) 
         {
             query.Add("~ToPool~", this.PoolName);
             clientBrokerManager.client.SendMessageWithResponse(query, (response) =>
@@ -67,7 +74,7 @@ namespace BrokerClient
                 callback(response.GetJson<T>());
             });
         }
-        public void SendAllMessageWithResponse<T>(Query query, Action<T> callback) where T : class
+        public void SendAllMessageWithResponse<T>(Query query, Action<T> callback) 
         {
             query.Add("~ToPoolAll~", this.PoolName);
             clientBrokerManager.client.SendMessageWithResponse(query, (response) =>
