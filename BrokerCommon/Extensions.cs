@@ -1,7 +1,9 @@
-﻿using Newtonsoft.Json;
+﻿using System.Diagnostics;
+using Newtonsoft.Json;
 
 namespace BrokerCommon
 {
+    [DebuggerStepThrough]
     public static class Extensions
     {
         public static T FromJson<T>(this string json)

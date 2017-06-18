@@ -64,13 +64,14 @@ namespace BrokerCommon
 
                     var query = Query.Parse(response.Payload);
 
-                    if (query.Method.EndsWith("~Response~"))
+                    if (query.Contains("~Response~"))
                     {
-                        if (messageResponses.ContainsKey(query.QueryParams["~ResponseKey~"]))
+                        query.Remove("~Response~");
+                        if (messageResponses.ContainsKey(query["~ResponseKey~"]))
                         {
-                            var callback = messageResponses[query.QueryParams["~ResponseKey~"]];
-                            messageResponses.Remove(query.QueryParams["~ResponseKey~"]);
-
+                            var callback = messageResponses[query["~ResponseKey~"]];
+                            messageResponses.Remove(query["~ResponseKey~"]);
+                            query.Remove("~ResponseKey~");
                             callback(query);
                         }
                         else
@@ -78,13 +79,18 @@ namespace BrokerCommon
                             throw new Exception("Cannot find response callback");
                         }
                     }
-                    else if (query.QueryParams.ContainsKey("~ResponseKey~"))
+                    else if (query.Contains("~ResponseKey~"))
                     {
-                        var receiptId = query.QueryParams["~ResponseKey~"];
-
+                        var receiptId = query["~ResponseKey~"];
+                        query.Remove("~ResponseKey~");
                         OnMessageWithResponse?.Invoke(this, query, (queryResponse) =>
                             {
-                                queryResponse.AddQueryParam("~ResponseKey~", receiptId);
+                                queryResponse.Add("~Response~");
+                               /* if (query.Contains("~FromSwimmer~"))
+                                {
+                                    queryResponse.Add("~FromSwimmer~",query["~FromSwimmer~"]);
+                                }*/
+                                queryResponse.Add("~ResponseKey~", receiptId);
                                 SendMessage(queryResponse);
                             }
                         );
@@ -117,7 +123,7 @@ namespace BrokerCommon
         public bool SendMessageWithResponse(Query message, Action<Query> callback)
         {
             var responseKey = Guid.NewGuid().ToString("N");
-            message.QueryParams.Add("~ResponseKey~", responseKey);
+            message.Add("~ResponseKey~", responseKey);
             messageResponses[responseKey] = callback;
 
             return SendMessage(message);
@@ -204,30 +210,5 @@ namespace BrokerCommon
         }
 
 
-    }
-
-    internal class WorkerResponse
-    {
-        public WorkerResult Result { get; set; }
-        public string Payload { get; set; }
-        private WorkerResponse()
-        {
-
-        }
-
-        public static WorkerResponse Message(string data)
-        {
-            return new WorkerResponse() { Result = WorkerResult.Message, Payload = data };
-        }
-        public static WorkerResponse Disconnect()
-        {
-            return new WorkerResponse() { Result = WorkerResult.Disconnect };
-        }
-    }
-
-    internal enum WorkerResult
-    {
-        Message,
-        Disconnect
     }
 }

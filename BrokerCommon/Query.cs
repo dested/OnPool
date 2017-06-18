@@ -1,26 +1,15 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
 namespace BrokerCommon
 {
-
-
-    public class QueryParam
-    {
-        public QueryParam(string key, string value)
-        {
-            Key = key;
-            Value = value;
-        }
-
-        public string Key { get; set; }
-        public string Value { get; set; }
-    }
+    [DebuggerStepThrough]
     public class Query
     {
-        public Query(string method, QueryParam[] queryParams)
+        private Query(string method, params QueryParam[] queryParams)
         {
             this.Method = method;
             QueryParams = queryParams.ToDictionary(a => a.Key, a => a.Value);
@@ -33,9 +22,23 @@ namespace BrokerCommon
         }
 
         public string Method { get; set; }
-        public Dictionary<string, string> QueryParams { get; set; }
+        private Dictionary<string, string> QueryParams { get; set; }
 
+        public string this[string key] => QueryParams[key];
+        public bool Contains(string key) { return QueryParams.ContainsKey(key); }
+        public void Add(string key, string value)
+        {
+            QueryParams.Add(key, value);
+        }
 
+        public void Add(string key)
+        {
+            QueryParams.Add(key, "");
+        }
+        public void Remove(string key)
+        {
+            this.QueryParams.Remove(key);
+        }
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
@@ -55,13 +58,11 @@ namespace BrokerCommon
         {
             return new Query(method, queryParams);
         }
-        public static Query Build(string method, string json)
+        public static Query Build<T>(string method, T json, params QueryParam[] queryParams)
         {
-            return new Query(method, new[] { new QueryParam("Json", json) });
-        }
-        public static Query Build<T>(string method, T json)
-        {
-            return new Query(method, new[] { new QueryParam("Json", json.ToJson()) });
+            var qp = new List<QueryParam>() { new QueryParam("Json", json.ToJson()) };
+            qp.AddRange(queryParams);
+            return new Query(method, qp.ToArray());
         }
 
         public static Query Parse(string message)
@@ -77,15 +78,29 @@ namespace BrokerCommon
             return new Query(messageSplit[0], qparams.ToArray());
         }
 
-        public void AddQueryParam(string key, string value)
+
+
+        public T GetJson<T>() where T : class
         {
-            QueryParams.Add(key, value);
+            if (Contains("Json"))
+            {
+                return QueryParams["Json"].FromJson<T>();
+            }
+            return null;
         }
 
-        public T GetJson<T>()
+    }
+    [DebuggerStepThrough]
+    public class QueryParam
+    {
+        public QueryParam(string key, object value)
         {
-            return QueryParams["Json"].FromJson<T>();
+            Key = key;
+            Value = value.ToString();
         }
+
+        public string Key { get; set; }
+        public string Value { get; set; }
     }
 
 }
