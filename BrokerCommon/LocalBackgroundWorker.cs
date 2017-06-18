@@ -71,7 +71,7 @@ namespace BrokerCommon
         }
 
         public Action<LocalBackgroundWorker<TPayload, TResponse>, TPayload> DoWork { get; set; }
-        public Action<LocalBackgroundWorker<TPayload, TResponse>, TResponse> ProgressChanged { get; set; }
+        public Action<LocalBackgroundWorker<TPayload, TResponse>, TResponse> ReportResponse { get; set; }
 
         public void Run(TPayload payload)
         {
@@ -113,7 +113,7 @@ namespace BrokerCommon
 
         public void ProcessResponseMainThread(object response)
         {
-            this.ProgressChanged(this, (TResponse)response);
+            this.ReportResponse(this, (TResponse)response);
         }
     }
 

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace BrokerCommon
@@ -18,7 +19,8 @@ namespace BrokerCommon
         private string serverIp;
 
         public Action<ClientConnection> OnDisconnect { get; set; }
-        public Action<ClientConnection, string> OnMessage { get; set; }
+        public Action<ClientConnection, Query> OnMessage { get; set; }
+        public Action<ClientConnection, Query, Action<Query>> OnMessageWithResponse { get; set; }
 
         public ClientConnection(TcpClient tcpClient)
         {
@@ -47,20 +49,50 @@ namespace BrokerCommon
             tcpClient.ReceiveTimeout = 30000;
             tcpClient.SendTimeout = 30000;
             stream = tcpClient.GetStream();
-            awaitMessagesWorker = new LocalBackgroundWorker<object,WorkerResponse>();
-            awaitMessagesWorker.DoWork += (worker, _) => Thread_ReceiveData(worker);
-            awaitMessagesWorker.ProgressChanged += (worker, response) => ReceiveFromThread(response);
+            awaitMessagesWorker = new LocalBackgroundWorker<object, WorkerResponse>();
+            awaitMessagesWorker.DoWork += (worker, _) => Thread_MonitorStream(worker);
+            awaitMessagesWorker.ReportResponse += (worker, response) => ReceiveResponse(response);
             awaitMessagesWorker.Run();
         }
 
 
-
-        private void ReceiveFromThread(WorkerResponse response)
+        private void ReceiveResponse(WorkerResponse response)
         {
             switch (response.Result)
             {
                 case WorkerResult.Message:
-                    OnMessage?.Invoke(this, response.Payload);
+
+                    var query = Query.Parse(response.Payload);
+
+                    if (query.Method.EndsWith("~Response~"))
+                    {
+                        if (messageResponses.ContainsKey(query.QueryParams["~ResponseKey~"]))
+                        {
+                            var callback = messageResponses[query.QueryParams["~ResponseKey~"]];
+                            messageResponses.Remove(query.QueryParams["~ResponseKey~"]);
+
+                            callback(query);
+                        }
+                        else
+                        {
+                            throw new Exception("Cannot find response callback");
+                        }
+                    }
+                    else if (query.QueryParams.ContainsKey("~ResponseKey~"))
+                    {
+                        var receiptId = query.QueryParams["~ResponseKey~"];
+
+                        OnMessageWithResponse?.Invoke(this, query, (queryResponse) =>
+                            {
+                                queryResponse.AddQueryParam("~ResponseKey~", receiptId);
+                                SendMessage(queryResponse);
+                            }
+                        );
+                    }
+                    else
+                    {
+                        OnMessage?.Invoke(this, query);
+                    }
                     break;
                 case WorkerResult.Disconnect:
                     Disconnect();
@@ -81,8 +113,18 @@ namespace BrokerCommon
             OnDisconnect?.Invoke(this);
         }
 
+        Dictionary<string, Action<Query>> messageResponses = new Dictionary<string, Action<Query>>();
+        public bool SendMessageWithResponse(Query message, Action<Query> callback)
+        {
+            var responseKey = Guid.NewGuid().ToString("N");
+            message.QueryParams.Add("~ResponseKey~", responseKey);
+            messageResponses[responseKey] = callback;
 
-        public bool SendMessage(string message)
+            return SendMessage(message);
+        }
+
+
+        public bool SendMessage(Query message)
         {
             if (!tcpClient.Connected)
             {
@@ -107,7 +149,7 @@ namespace BrokerCommon
 
 
 
-        private void Thread_ReceiveData(LocalBackgroundWorker<object, WorkerResponse> worker)
+        private void Thread_MonitorStream(LocalBackgroundWorker<object, WorkerResponse> worker)
         {
             try
             {
@@ -160,6 +202,8 @@ namespace BrokerCommon
         {
             worker.SendResponse(WorkerResponse.Disconnect());
         }
+
+
     }
 
     internal class WorkerResponse
