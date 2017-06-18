@@ -7,7 +7,6 @@ import {GetSwimmerByPoolResponse} from "./models/GetSwimmerByPoolResponse";
 export class ClientPool {
     public clientBrokerManager: ClientBrokerManager;
     public PoolName: string;
-    public NumberOfSwimmers: number;
     public onMessage: ((query: Query) => void)[]=[];
     public onMessageWithResponse: ((query: Query, callback: (response: Query) => void) => void)[]=[];
 
@@ -22,7 +21,6 @@ export class ClientPool {
     constructor(clientBrokerManager: ClientBrokerManager, response: GetPoolByNameResponse) {
         this.clientBrokerManager = clientBrokerManager;
         this.PoolName = response.PoolName;
-        this.NumberOfSwimmers = response.NumberOfSwimmers;
     }
 
     public GetSwimmers(callback: (_: ClientPoolSwimmer[]) => void): void {

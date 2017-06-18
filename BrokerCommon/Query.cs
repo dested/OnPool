@@ -6,7 +6,7 @@ using System.Text;
 
 namespace BrokerCommon
 {
-    [DebuggerStepThrough]
+//    [DebuggerStepThrough]
     public class Query
     {
         private Query(string method, params QueryParam[] queryParams)
@@ -48,7 +48,7 @@ namespace BrokerCommon
             {
                 sb.Append(query.Key);
                 sb.Append("=");
-                sb.Append(query.Value);
+                sb.Append(Uri.EscapeDataString(query.Value));
                 sb.Append("&");
             }
             return sb.ToString();
@@ -75,7 +75,7 @@ namespace BrokerCommon
                 foreach (var s in messageSplit[1].Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries))
                 {
                     var querySplit = s.Split('=');
-                    qparams.Add(new QueryParam(querySplit[0], querySplit[1]));
+                    qparams.Add(new QueryParam(querySplit[0], Uri.UnescapeDataString(querySplit[1])));
                 }
             }
             return new Query(messageSplit[0], qparams.ToArray());

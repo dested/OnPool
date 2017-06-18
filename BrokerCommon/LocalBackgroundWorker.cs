@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
@@ -12,11 +13,21 @@ namespace BrokerCommon
     public class LocalBackgroundWorker<TPayload, TResponse> : ILocalBackgroundWorker where TPayload : class
     {
 
+        private bool UserLocalWorker => LocalThreadManager.GetInstance() != null;
         public Thread Thread { get; set; }
+        private BackgroundWorker bw;
 
         public LocalBackgroundWorker()
         {
-            LocalThreadManager.GetInstance().AddWorker(this);
+            if (UserLocalWorker)
+            {
+                LocalThreadManager.GetInstance().AddWorker(this);
+            
+            }
+            else
+            {
+                bw = new BackgroundWorker();
+            }
         }
 
         public Action<LocalBackgroundWorker<TPayload, TResponse>, TPayload> DoWork { get; set; }
@@ -24,11 +35,27 @@ namespace BrokerCommon
 
         public void Run(TPayload payload)
         {
-            Thread = new Thread(() =>
+            if (UserLocalWorker)
             {
-                this.DoWork(this, payload);
-            });
-            Thread.Start();
+                Thread = new Thread(() =>
+                {
+                    this.DoWork(this, payload);
+                });
+                Thread.Start();
+            }
+            else
+            {
+                bw.WorkerReportsProgress = true;
+                bw.DoWork += (_, __) =>
+                {
+                    this.DoWork(this, payload);
+                };
+                bw.ProgressChanged += (_, __) =>
+                {
+                    this.ReportResponse(this, (TResponse) __.UserState);
+                };
+                bw.RunWorkerAsync(payload);
+            }
         }
         public void Run()
         {
@@ -39,9 +66,17 @@ namespace BrokerCommon
 
         public void SendResponse(TResponse response)
         {
-            lock (responses)
+            if (UserLocalWorker)
             {
-                responses.Add(response);
+
+                lock (responses)
+                {
+                    responses.Add(response);
+                }
+            }
+            else
+            {
+                bw.ReportProgress(0, response);
             }
         }
 

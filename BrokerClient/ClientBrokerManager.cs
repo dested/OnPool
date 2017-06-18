@@ -27,6 +27,8 @@ namespace BrokerClient
             client.StartFromClient();
             GetSwimmerId((id) =>
             {
+                Console.WriteLine("Got ClientId " + id);
+
                 client.Id = id;
                 this.onReady?.Invoke();
             });
@@ -112,19 +114,25 @@ namespace BrokerClient
 
         public void GetPool(string poolName, Action<ClientPool> callback)
         {
+            var pool = pools.FirstOrDefault(a => a.PoolName == poolName);
+            if (pool != null)
+            {
+                callback(pool);
+                return;
+            }
+
             var query = Query.Build("GetPool", new QueryParam("PoolName", poolName));
 
             client.SendMessageWithResponse(query, (response) =>
             {
                 var getPoolByNameResponse = response.GetJson<GetPoolByNameResponse>();
-                ClientPool pool = pools.FirstOrDefault(a => a.PoolName == getPoolByNameResponse.PoolName);
+                pool = pools.FirstOrDefault(a => a.PoolName == getPoolByNameResponse.PoolName);
                 if (pool == null)
                 {
                     pools.Add(pool = new ClientPool(this, getPoolByNameResponse));
                 }
 
                 pool.PoolName = getPoolByNameResponse.PoolName;
-                pool.NumberOfSwimmers = getPoolByNameResponse.NumberOfSwimmers;
                 callback(pool);
             });
         }

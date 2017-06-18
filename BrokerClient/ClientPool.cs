@@ -9,9 +9,8 @@ namespace BrokerClient
     {
         internal readonly ClientBrokerManager clientBrokerManager;
         public string PoolName { get; set; }
-        public int NumberOfSwimmers { get; set; }
-        public Action<Query> onMessage { get; set; }
-        public Action<Query, Action<Query>> onMessageWithResponse { get; set; }
+        internal Action<Query> onMessage { get; set; }
+        internal Action<Query, Action<Query>> onMessageWithResponse { get; set; }
         public void OnMessage(Action<Query> callback)
         {
             onMessage += callback;
@@ -26,7 +25,6 @@ namespace BrokerClient
         {
             this.clientBrokerManager = clientBrokerManager;
             PoolName = response.PoolName;
-            NumberOfSwimmers = response.NumberOfSwimmers;
         }
 
         public void GetSwimmers(Action<ClientPoolSwimmer[]> callback)

@@ -141,7 +141,6 @@ namespace BrokerServer
             return new GetPoolByNameResponse()
             {
                 PoolName = pool.Name,
-                NumberOfSwimmers = pool.Swimmers.Count
             };
         }
 
