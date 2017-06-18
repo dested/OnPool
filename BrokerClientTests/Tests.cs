@@ -24,11 +24,11 @@ namespace BrokerClientTests
             {
                 BuildClientManager((manager1) =>
                 {
-                    manager1.OnMessageWithResponse((query, respond) =>
+                    manager1.OnMessageWithResponse((from, message, respond) =>
                     {
-                        Assert.AreEqual(query.Method, "Baz");
-                        Assert.AreEqual(query.GetJson<int>(), 12);
-                        respond(query.Respond("foo1"));
+                        Assert.AreEqual(message.Method, "Baz");
+                        Assert.AreEqual(message.GetJson<int>(), 12);
+                        respond(message.Respond("foo1"));
                     });
                     manager1.OnReady(() =>
                     {
@@ -38,11 +38,11 @@ namespace BrokerClientTests
                             {
                                 BuildClientManager((manager2) =>
                                 {
-                                    manager2.OnMessageWithResponse((query, respond) =>
+                                    manager2.OnMessageWithResponse((from, message, respond) =>
                                     {
-                                        Assert.AreEqual(query.Method, "Baz");
-                                        Assert.AreEqual(query.GetJson<int>(), 13);
-                                        respond(query.Respond("foo2"));
+                                        Assert.AreEqual(message.Method, "Baz");
+                                        Assert.AreEqual(message.GetJson<int>(), 13);
+                                        respond(message.Respond("foo2"));
                                     });
                                     manager2.OnReady(() =>
                                     {
@@ -93,7 +93,7 @@ namespace BrokerClientTests
                 });
 
             });
-        
+
         }
 
 
@@ -110,19 +110,19 @@ namespace BrokerClientTests
                         manager1.GetPool("GameServers", pool1 =>
                         {
                             int poolHit = 0;
-                            pool1.OnMessageWithResponse((q, respond) =>
+                            pool1.OnMessageWithResponse((from, message, respond) =>
                             {
-                                Assert.AreEqual(q.Method, "Baz");
+                                Assert.AreEqual(message.Method, "Baz");
                                 if (poolHit == 0)
                                 {
                                     poolHit++;
-                                    Assert.AreEqual(q.GetJson<int>(), 12);
-                                    respond(q.Respond(13));
+                                    Assert.AreEqual(message.GetJson<int>(), 12);
+                                    respond(message.Respond(13));
                                 }
                                 else
                                 {
-                                    Assert.AreEqual(q.GetJson<int>(), 14);
-                                    respond(q.Respond(15));
+                                    Assert.AreEqual(message.GetJson<int>(), 14);
+                                    respond(message.Respond(15));
                                 }
                             });
 
@@ -136,11 +136,11 @@ namespace BrokerClientTests
                                         {
                                             pool2.JoinPool(() =>
                                             {
-                                                pool2.OnMessageWithResponse((q, respond) =>
+                                                pool2.OnMessageWithResponse((from, message, respond) =>
                                                 {
-                                                    Assert.AreEqual(q.Method, "Bar");
-                                                    Assert.AreEqual(q.GetJson<int>(), 13);
-                                                    respond(q.Respond(14));
+                                                    Assert.AreEqual(message.Method, "Bar");
+                                                    Assert.AreEqual(message.GetJson<int>(), 13);
+                                                    respond(message.Respond(14));
                                                 });
 
                                                 BuildClientManager((manager3) =>
@@ -184,6 +184,51 @@ namespace BrokerClientTests
             });
 
         }
+        [TestMethod]
+        public void TestDirectSwimmerResponse()
+        {
+            SpinThread(() =>
+            {
+                BuildClientManager((manager1) =>
+                {
+                    manager1.OnReady(() =>
+                    {
+                        manager1.OnMessageWithResponse((from, message, respond) =>
+                        {
+                            Assert.AreEqual(message.Method, "Hi");
+                            Assert.AreEqual(message.GetJson<int>(), 12);
+                            respond(message.Respond(20));
+                        });
+                        manager1.GetPool("GameServers", pool1 =>
+                        {
+                            pool1.JoinPool(() =>
+                            {
+                                BuildClientManager((manager2) =>
+                                {
+                                    manager2.OnReady(() =>
+                                    {
+                                        manager2.GetPool("GameServers", pool2 =>
+                                        {
+                                            pool1.GetSwimmers((swimmers) =>
+                                            {
+                                                var swim = swimmers.First();
+                                                manager2.SendMessageWithResponse<int>(swim.Id, Query.Build("Hi", 12), (q) =>
+                                                {
+                                                    Assert.AreEqual(q, 20);
+                                                    threadManager.Kill();
+                                                });
+                                            });
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+
+            });
+
+        }
 
 
 
@@ -198,11 +243,11 @@ namespace BrokerClientTests
                     {
                         manager1.GetPool("GameServers", pool1 =>
                         {
-                            pool1.OnMessageWithResponse((q, respond) =>
+                            pool1.OnMessageWithResponse((from, message, respond) =>
                             {
-                                Assert.AreEqual(q.Method, "Bar");
-                                Assert.AreEqual(q.GetJson<int>(), 13);
-                                respond(q.Respond(14));
+                                Assert.AreEqual(message.Method, "Bar");
+                                Assert.AreEqual(message.GetJson<int>(), 13);
+                                respond(message.Respond(14));
                             });
 
                             pool1.JoinPool(() =>
@@ -215,11 +260,11 @@ namespace BrokerClientTests
                                         {
                                             pool2.JoinPool(() =>
                                             {
-                                                pool2.OnMessageWithResponse((q, respond) =>
+                                                pool2.OnMessageWithResponse((from, message, respond) =>
                                                 {
-                                                    Assert.AreEqual(q.Method, "Bar");
-                                                    Assert.AreEqual(q.GetJson<int>(), 13);
-                                                    respond(q.Respond(14));
+                                                    Assert.AreEqual(message.Method, "Bar");
+                                                    Assert.AreEqual(message.GetJson<int>(), 13);
+                                                    respond(message.Respond(14));
                                                 });
 
                                                 BuildClientManager((manager3) =>
@@ -266,11 +311,11 @@ namespace BrokerClientTests
                         {
                             manager.GetPool("GameServers", pool1 =>
                             {
-                                pool1.OnMessageWithResponse((q, respond) =>
+                                pool1.OnMessageWithResponse((from, message, respond) =>
                                 {
-                                    Assert.AreEqual(q.Method, "Bar");
-                                    Assert.AreEqual(q.GetJson<int>(), 13);
-                                    respond(q.Respond(14));
+                                    Assert.AreEqual(message.Method, "Bar");
+                                    Assert.AreEqual(message.GetJson<int>(), 13);
+                                    respond(message.Respond(14));
                                 });
 
                                 pool1.JoinPool(() =>
@@ -318,11 +363,11 @@ namespace BrokerClientTests
                         {
                             manager.GetPool("GameServers", pool1 =>
                             {
-                                pool1.OnMessageWithResponse((q, respond) =>
+                                pool1.OnMessageWithResponse((from, message, respond) =>
                                 {
-                                    Assert.AreEqual(q.Method, "Bar");
-                                    Assert.AreEqual(q.GetJson<int>(), 13);
-                                    respond(q.Respond(14));
+                                    Assert.AreEqual(message.Method, "Bar");
+                                    Assert.AreEqual(message.GetJson<int>(), 13);
+                                    respond(message.Respond(14));
                                 });
 
                                 pool1.JoinPool(() =>
@@ -357,12 +402,12 @@ namespace BrokerClientTests
 
 
             });
-             
+
         }
-         
 
 
-        private ServerBroker broker ;
+
+        private ServerBroker broker;
         private List<ClientBrokerManager> clients = new List<ClientBrokerManager>();
         private void BuildClientManager(Action<ClientBrokerManager> ready)
         {
@@ -375,7 +420,7 @@ namespace BrokerClientTests
         private void SpinThread(Action ready)
         {
             threadManager = LocalThreadManager.Start();
-//            broker=new ServerBroker();
+//            broker = new ServerBroker();
             ready();
 
             threadManager.Process();
@@ -383,8 +428,8 @@ namespace BrokerClientTests
             {
                 client.Disconnet();
             }
-            clients=new List<ClientBrokerManager>();
-//            broker?.Disconnect();
+            clients = new List<ClientBrokerManager>();
+            //            broker?.Disconnect();
         }
 
 

@@ -9,14 +9,14 @@ namespace BrokerClient
     {
         internal readonly ClientBrokerManager clientBrokerManager;
         public string PoolName { get; set; }
-        internal Action<Query> onMessage { get; set; }
-        internal Action<Query, Action<Query>> onMessageWithResponse { get; set; }
-        public void OnMessage(Action<Query> callback)
+        internal OnMessage onMessage { get; set; }
+        internal OnMessageWithResponse onMessageWithResponse { get; set; }
+        public void OnMessage(OnMessage callback)
         {
             onMessage += callback;
         }
 
-        public void OnMessageWithResponse(Action<Query, Action<Query>> callback)
+        public void OnMessageWithResponse(OnMessageWithResponse callback)
         {
             onMessageWithResponse += callback;
         }

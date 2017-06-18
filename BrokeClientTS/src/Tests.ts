@@ -15,20 +15,20 @@ export class Tests {
 
     public TestSwimmerResponse(testPass: () => void, testFail: (reason: string) => void): void {
         this.BuildClientManager((manager1) => {
-            manager1.OnMessageWithResponse((query, respond) => {
-                this.assertAreEqual(query.Method, "Baz", testFail);
-                this.assertAreEqual(query.GetJson<number>(), 12, testFail);
-                respond(query.RespondWithJson("foo1"));
+            manager1.OnMessageWithResponse((from,message, respond) => {
+                this.assertAreEqual(message.Method, "Baz", testFail);
+                this.assertAreEqual(message.GetJson<number>(), 12, testFail);
+                respond(message.RespondWithJson("foo1"));
             });
             manager1.OnReady(() => {
                 manager1.GetPool("GameServers",
                     pool => {
                         pool.JoinPool(() => {
                             this.BuildClientManager((manager2) => {
-                                manager2.OnMessageWithResponse((query, respond) => {
-                                    this.assertAreEqual(query.Method, "Baz", testFail);
-                                    this.assertAreEqual(query.GetJson<number>(), 13, testFail);
-                                    respond(query.RespondWithJson("foo2"));
+                                manager2.OnMessageWithResponse((from,message, respond) => {
+                                    this.assertAreEqual(message.Method, "Baz", testFail);
+                                    this.assertAreEqual(message.GetJson<number>(), 13, testFail);
+                                    respond(message.RespondWithJson("foo2"));
                                 });
                                 manager2.OnReady(() => {
                                     manager2.GetPool("GameServers",
@@ -85,15 +85,15 @@ export class Tests {
                 manager1.GetPool("GameServers",
                     pool1 => {
                         let poolHit = 0;
-                        pool1.OnMessageWithResponse((q, respond) => {
-                            this.assertAreEqual(q.Method, "Baz", testFail);
+                        pool1.OnMessageWithResponse((from, message, respond) => {
+                            this.assertAreEqual(message.Method, "Baz", testFail);
                             if (poolHit === 0) {
                                 poolHit++;
-                                this.assertAreEqual(q.GetJson<number>(), 12, testFail);
-                                respond(q.RespondWithJson(13));
+                                this.assertAreEqual(message.GetJson<number>(), 12, testFail);
+                                respond(message.RespondWithJson(13));
                             } else {
-                                this.assertAreEqual(q.GetJson<number>(), 14, testFail);
-                                respond(q.RespondWithJson(15));
+                                this.assertAreEqual(message.GetJson<number>(), 14, testFail);
+                                respond(message.RespondWithJson(15));
                             }
                         });
 
@@ -103,10 +103,10 @@ export class Tests {
                                     manager2.GetPool("GameServers",
                                         pool2 => {
                                             pool2.JoinPool(() => {
-                                                pool2.OnMessageWithResponse((q, respond) => {
-                                                    this.assertAreEqual(q.Method, "Bar", testFail);
-                                                    this.assertAreEqual(q.GetJson<number>(), 13, testFail);
-                                                    respond(q.RespondWithJson(14));
+                                                pool2.OnMessageWithResponse((from, message, respond) => {
+                                                    this.assertAreEqual(message.Method, "Bar", testFail);
+                                                    this.assertAreEqual(message.GetJson<number>(), 13, testFail);
+                                                    respond(message.RespondWithJson(14));
                                                 });
 
                                                 this.BuildClientManager((manager3) => {
@@ -151,16 +151,48 @@ export class Tests {
     }
 
 
+    public TestDirectSwimmerResponse(testPass: () => void, testFail: (reason: string) => void): void {
+
+        this.BuildClientManager((manager1) => {
+            manager1.OnReady(() => {
+                manager1.OnMessageWithResponse((from, message, respond) => {
+                    this.assertAreEqual(message.Method, "Hi",testFail);
+                    this.assertAreEqual(message.GetJson<number>(), 12, testFail);
+                    respond(message.RespondWithJson(20));
+                });
+                manager1.GetPool("GameServers", pool1 => {
+                    pool1.JoinPool(() => {
+                        this.BuildClientManager((manager2) => {
+                            manager2.OnReady(() => {
+                                manager2.GetPool("GameServers", pool2 => {
+                                    pool1.GetSwimmers((swimmers) => {
+                                        var swim = swimmers[0];
+                                        manager2.SendMessageWithResponse<number>(swim.Id, Query.BuildWithJson("Hi", 12), (q) => {
+                                            this.assertAreEqual(q, 20,testFail);
+                                            testPass();
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+
+    }
+
+
     public TestAllPoolResponse(testPass: () => void, testFail: (reason: string) => void): void {
 
         this.BuildClientManager((manager1) => {
             manager1.OnReady(() => {
                 manager1.GetPool("GameServers",
                     pool1 => {
-                        pool1.OnMessageWithResponse((q, respond) => {
-                            this.assertAreEqual(q.Method, "Bar", testFail);
-                            this.assertAreEqual(q.GetJson<number>(), 13, testFail);
-                            respond(q.RespondWithJson(14));
+                        pool1.OnMessageWithResponse((from,message, respond) => {
+                            this.assertAreEqual(message.Method, "Bar", testFail);
+                            this.assertAreEqual(message.GetJson<number>(), 13, testFail);
+                            respond(message.RespondWithJson(14));
                         });
 
                         pool1.JoinPool(() => {
@@ -169,10 +201,10 @@ export class Tests {
                                     manager2.GetPool("GameServers",
                                         pool2 => {
                                             pool2.JoinPool(() => {
-                                                pool2.OnMessageWithResponse((q, respond) => {
-                                                    this.assertAreEqual(q.Method, "Bar", testFail);
-                                                    this.assertAreEqual(q.GetJson<number>(), 13, testFail);
-                                                    respond(q.RespondWithJson(14));
+                                                pool2.OnMessageWithResponse((from,message, respond) => {
+                                                    this.assertAreEqual(message.Method, "Bar", testFail);
+                                                    this.assertAreEqual(message.GetJson<number>(), 13, testFail);
+                                                    respond(message.RespondWithJson(14));
                                                 });
 
                                                 this.BuildClientManager((manager3) => {
@@ -207,12 +239,12 @@ export class Tests {
         for (let i = 0; i < 100; i++) {
             this.BuildClientManager((manager) => {
                 manager.OnReady(() => {
-                    manager.GetPool("GameServers",
+                    manager.GetPool("GameServers2",
                         pool1 => {
-                            pool1.OnMessageWithResponse((q, respond) => {
-                                this.assertAreEqual(q.Method, "Bar", testFail);
-                                this.assertAreEqual(q.GetJson<number>(), 13, testFail);
-                                respond(q.RespondWithJson(14));
+                            pool1.OnMessageWithResponse((from,message, respond) => {
+                                this.assertAreEqual(message.Method, "Bar", testFail);
+                                this.assertAreEqual(message.GetJson<number>(), 13, testFail);
+                                respond(message.RespondWithJson(14));
                             });
 
                             pool1.JoinPool(() => {
@@ -225,13 +257,14 @@ export class Tests {
 
         this.BuildClientManager((manager) => {
             manager.OnReady(() => {
-                manager.GetPool("GameServers",
+                manager.GetPool("GameServers2",
                     pool3 => {
                         let countHit = 0;
                         pool3.SendAllMessageWithResponse<number>(Query.BuildWithJson("Bar", 13),
                             (m) => {
                                 this.assertAreEqual(m, 14, testFail);
                                 countHit++;
+                                console.log(countHit);
                                 if (countHit === 100) testPass();;
                             });
                     });
@@ -247,10 +280,10 @@ export class Tests {
                 manager.OnReady(() => {
                     manager.GetPool("GameServers",
                         pool1 => {
-                            pool1.OnMessageWithResponse((q, respond) => {
-                                this.assertAreEqual(q.Method, "Bar", testFail);
-                                this.assertAreEqual(q.GetJson<number>(), 13, testFail);
-                                respond(q.RespondWithJson(14));
+                            pool1.OnMessageWithResponse((from,message, respond) => {
+                                this.assertAreEqual(message.Method, "Bar", testFail);
+                                this.assertAreEqual(message.GetJson<number>(), 13, testFail);
+                                respond(message.RespondWithJson(14));
                             });
 
                             pool1.JoinPool(() => {

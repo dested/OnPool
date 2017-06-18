@@ -30,12 +30,12 @@ namespace BrokerClient
             var c = new ClientBrokerManager();
             c.ConnectToBroker("127.0.0.1");
             c.OnDisconnect(() => { });
-            c.OnMessage((message) =>
+            c.OnMessage((from, message) =>
             {
                 Console.WriteLine(message.ToString());
             });
 
-            c.OnMessageWithResponse((message, respond) =>
+            c.OnMessageWithResponse((from, message, respond) =>
             {
                 Console.WriteLine(message.ToString());
                 respond(Query.Build("Baz", 12));
@@ -45,11 +45,11 @@ namespace BrokerClient
             {
                 c.GetPool("GameServers", pool =>
                 {
-                    pool.OnMessage((message) =>
+                    pool.OnMessage((from, message) =>
                    {
                        Console.WriteLine(message.ToString());
                    });
-                    pool.OnMessageWithResponse((message, respond) =>
+                    pool.OnMessageWithResponse((from, message, respond) =>
                    {
                         //                        Console.WriteLine(message.ToString());
                         respond(Query.Build("Baz", 12));

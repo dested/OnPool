@@ -9,7 +9,7 @@ namespace BrokerServer
     public class ServerBroker : IServerBroker
     {
         private ServerManager serverManager;
-        private List<ClientConnection> Swimmers = new List<ClientConnection>();
+        private List<SocketLayer> Swimmers = new List<SocketLayer>();
         private List<ServerPool> Pools { get; set; } = new List<ServerPool>();
 
         public ServerBroker()
@@ -24,7 +24,7 @@ namespace BrokerServer
         }
 
 
-        private void ClientMessage(ClientConnection client, Query query)
+        private void ClientMessage(SocketLayer client, Query query)
         {
             if (query.Contains("~ToSwimmer~"))
             {
@@ -46,7 +46,7 @@ namespace BrokerServer
 
         }
 
-        private void ClientMessageWithResponse(ClientConnection client, Query query, Action<Query> respond)
+        private void ClientMessageWithResponse(SocketLayer client, Query query, Action<Query> respond)
         {
             if (query.Contains("~ToSwimmer~"))
             {
@@ -104,12 +104,12 @@ namespace BrokerServer
             }
         }
 
-        public void AddSwimmer(ClientConnection client)
+        public void AddSwimmer(SocketLayer client)
         {
             this.Swimmers.Add(client);
         }
 
-        public void RemoveSwimmer(ClientConnection client)
+        public void RemoveSwimmer(SocketLayer client)
         {
             this.Swimmers.Remove(client);
             for (var index = Pools.Count - 1; index >= 0; index--)
@@ -152,14 +152,14 @@ namespace BrokerServer
             {
                 Pools.Add(pool = new ServerPool()
                 {
-                    Swimmers = new List<ClientConnection>(),
+                    Swimmers = new List<SocketLayer>(),
                     Name = poolName
                 });
             }
             return pool;
         }
 
-        public void JoinPool(ClientConnection client, string poolName)
+        public void JoinPool(SocketLayer client, string poolName)
         {
             var pool = getPoolByName(poolName);
             if (pool.Swimmers.Contains(client)) return;

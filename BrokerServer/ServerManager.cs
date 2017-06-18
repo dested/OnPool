@@ -7,17 +7,17 @@ namespace BrokerServer
 {
     public class ServerManager
     {
-        private readonly Action<ClientConnection> _addClient;
-        private readonly Action<ClientConnection> _removeClient;
-        private readonly Action<ClientConnection, Query> _clientMessage;
-        private readonly Action<ClientConnection, Query, Action<Query>> _clientMessageWithResponse;
+        private readonly Action<SocketLayer> _addClient;
+        private readonly Action<SocketLayer> _removeClient;
+        private readonly OnMessage _clientMessage;
+        private readonly OnMessageWithResponse _clientMessageWithResponse;
         private Socket server;
 
         public ServerManager(
-            Action<ClientConnection> addClient,
-            Action<ClientConnection> removeClient,
-            Action<ClientConnection, Query> clientMessage,
-            Action<ClientConnection, Query, Action<Query>> clientMessageWithResponse
+            Action<SocketLayer> addClient,
+            Action<SocketLayer> removeClient,
+            OnMessage clientMessage,
+            OnMessageWithResponse clientMessageWithResponse
             )
         {
             _addClient = addClient;
@@ -42,7 +42,7 @@ namespace BrokerServer
 
         private void NewConnection(Socket socket)
         {
-            var client = new ClientConnection(socket);
+            var client = new SocketLayer(socket);
             client.Start();
             Console.WriteLine("Connected Client " + client.Id);
             _addClient(client);
@@ -83,7 +83,7 @@ namespace BrokerServer
 
 
 
-        private void ClientDisconnected(ClientConnection client)
+        private void ClientDisconnected(SocketLayer client)
         {
             Console.WriteLine($"Client {client.Id} Disconnected");
             _removeClient(client);
@@ -91,6 +91,7 @@ namespace BrokerServer
 
         public void Disconnect()
         {
+            server.Shutdown(SocketShutdown.Both);
             server.Close();
         }
     }

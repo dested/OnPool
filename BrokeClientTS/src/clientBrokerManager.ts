@@ -1,8 +1,8 @@
-﻿import { ClientPool } from "./clientPool";
-import { ClientConnection } from "./common/clientConnection";
-import { Query, QueryParam } from "./common/query";
-import { GetPoolByNameResponse } from "./models/GetPoolByNameResponse";
-import { GetAllPoolsResponse } from "./models/GetAllPoolsResponse";
+﻿import {ClientPool} from "./clientPool";
+import {ClientConnection, OnMessage, OnMessageWithResponse} from "./common/clientConnection";
+import {Query, QueryParam} from "./common/query";
+import {GetPoolByNameResponse} from "./models/GetPoolByNameResponse";
+import {GetAllPoolsResponse} from "./models/GetAllPoolsResponse";
 
 export class ClientBrokerManager {
     private pools: ClientPool[] = [];
@@ -14,13 +14,13 @@ export class ClientBrokerManager {
 
     private onReady: (() => void)[] = [];
     private onDisconnect: (() => void)[] = [];
-    private onMessage: ((query: Query) => void)[] = [];
-    private onMessageWithResponse: ((query: Query, callback: (query: Query) => void) => void)[] = [];
+    private onMessage: OnMessage[] = [];
+    private onMessageWithResponse: OnMessageWithResponse[] = [];
 
     public ConnectToBroker(ip: string): void {
         this.client = new ClientConnection("127.0.0.1");
-        this.client.OnMessage.push((_, message) => this.onReceiveMessage(message));
-        this.client.OnMessageWithResponse.push((_, message, respond) => this.onReceiveMessageWithResponse(message, respond));
+        this.client.OnMessage.push((from, message) => this.onReceiveMessage(from, message));
+        this.client.OnMessageWithResponse.push((from, message, respond) => this.onReceiveMessageWithResponse(from, message, respond));
         this.client.OnDisconnect.push(_ => this.invokeDisconnect());
         this.client.StartFromClient();
 
@@ -38,49 +38,49 @@ export class ClientBrokerManager {
         this.onDisconnect.push(callback);
     }
 
-    public OnMessage(call: (query: Query) => void): void {
+    public OnMessage(call: OnMessage): void {
         this.onMessage.push(call);
     }
 
-    public OnMessageWithResponse(callback: (query: Query, respond: (query: Query) => void) => void): void {
+    public OnMessageWithResponse(callback: OnMessageWithResponse): void {
         this.onMessageWithResponse.push(callback);
     }
 
-    private onReceiveMessageWithResponse(query: Query, respond: (query: Query) => void): void {
-        if (query.Contains("~ToSwimmer~")) {
-            this.invokeMessageWithResponse(query, respond);
+    private onReceiveMessageWithResponse(from: ClientConnection, message: Query, respond: (query: Query) => void): void {
+        if (message.Contains("~ToSwimmer~")) {
+            this.invokeMessageWithResponse(from, message, respond);
             return
         }
-        if (query.Contains("~ToPool~")) {
-            let pool = this.pools.filter(a => a.PoolName == query.get("~ToPool~"))[0];
-            pool && pool.invokeMessageWithResponse(query, respond);
+        if (message.Contains("~ToPool~")) {
+            let pool = this.pools.filter(a => a.PoolName == message.get("~ToPool~"))[0];
+            pool && pool.invokeMessageWithResponse(from, message, respond);
             return;
         }
-        if (query.Contains("~ToPoolAll~")) {
-            let pool = this.pools.filter(a => a.PoolName == query.get("~ToPoolAll~"))[0];
+        if (message.Contains("~ToPoolAll~")) {
+            let pool = this.pools.filter(a => a.PoolName == message.get("~ToPoolAll~"))[0];
             pool &&
-                pool.invokeMessageWithResponse(query,
-                    (res) => {
-                        res.Add("~PoolAllCount~", query.get("~PoolAllCount~"));
-                        respond(res);
-                    });
+            pool.invokeMessageWithResponse(from, message,
+                (res) => {
+                    res.Add("~PoolAllCount~", message.get("~PoolAllCount~"));
+                    respond(res);
+                });
             return;
         }
     }
 
-    private onReceiveMessage(query: Query): void {
-        if (query.Contains("~ToSwimmer~")) {
-            this.invokeMessage(query);
+    private onReceiveMessage(from: ClientConnection, message: Query): void {
+        if (message.Contains("~ToSwimmer~")) {
+            this.invokeMessage(from, message);
             return
         }
-        if (query.Contains("~ToPool~")) {
-            let pool = this.pools.filter(a => a.PoolName == query.get("~ToPool~"))[0];
-            pool && pool.invokeMessage(query);
+        if (message.Contains("~ToPool~")) {
+            let pool = this.pools.filter(a => a.PoolName == message.get("~ToPool~"))[0];
+            pool && pool.invokeMessage(from, message);
             return;
         }
-        if (query.Contains("~ToPoolAll~")) {
-            let pool = this.pools.filter(a => a.PoolName == query.get("~ToPoolAll~"))[0];
-            pool && pool.invokeMessage(query);
+        if (message.Contains("~ToPoolAll~")) {
+            let pool = this.pools.filter(a => a.PoolName == message.get("~ToPoolAll~"))[0];
+            pool && pool.invokeMessage(from, message);
             return;
         }
     }
@@ -92,7 +92,16 @@ export class ClientBrokerManager {
                 callback(response.GetJson<string>());
             });
     }
-
+    public SendMessage(swimmerId: string, query: Query): void {
+        query.Add("~ToSwimmer~", swimmerId);
+        this.client.SendMessage(query);
+    }
+    public SendMessageWithResponse<T>(swimmerId: string, query: Query, callback: (response: T) => void): void {
+        query.Add("~ToSwimmer~", swimmerId);
+        this.client.SendMessageWithResponse(query, (response) => {
+            callback(response.GetJson<T>());
+        });
+    }
     public GetPool(poolName: string, callback: (_: ClientPool) => void): void {
         var query = Query.Build("GetPool", new QueryParam("PoolName", poolName));
         this.client.SendMessageWithResponse(query,
@@ -103,7 +112,6 @@ export class ClientBrokerManager {
                     this.pools.push(pool = new ClientPool(this, getPoolByNameResponse));
                 }
                 pool.PoolName = getPoolByNameResponse.PoolName;
-                pool.NumberOfSwimmers = getPoolByNameResponse.NumberOfSwimmers;
                 callback(pool);
             });
     }
@@ -120,15 +128,15 @@ export class ClientBrokerManager {
         this.client.ForceDisconnect();
     }
 
-    private invokeMessageWithResponse(query: Query, respond: (query: Query) => void) {
+    private invokeMessageWithResponse(from: ClientConnection, message: Query, respond: (query: Query) => void) {
         for (var i = 0; i < this.onMessageWithResponse.length; i++) {
-            this.onMessageWithResponse[i](query, respond);
+            this.onMessageWithResponse[i](from, message, respond);
         }
     }
 
-    private invokeMessage(query: Query) {
+    private invokeMessage(from: ClientConnection, message: Query) {
         for (var i = 0; i < this.onMessage.length; i++) {
-            this.onMessage[i](query);
+            this.onMessage[i](from, message);
         }
     }
 
@@ -143,4 +151,5 @@ export class ClientBrokerManager {
             this.onReady[i]();
         }
     }
+
 }

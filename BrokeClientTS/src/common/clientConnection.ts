@@ -2,13 +2,16 @@
 import * as net from "net";
 import {Utils} from "./utils";
 
+export type OnMessage = (client: ClientConnection, message: Query) => void;
+export type OnMessageWithResponse = (client: ClientConnection, message: Query, response: (query: Query) => void) => void;
+
 export class ClientConnection {
     public Id: string;
     private disconnected: boolean = false;
     private serverIp: string;
     public OnDisconnect: ((client: ClientConnection) => void)[] = [];
-    public OnMessage: ((client: ClientConnection, query: Query) => void)[] = [];
-    public OnMessageWithResponse: ((client: ClientConnection, query: Query, response: (query: Query) => void) => void)[] = [];
+    public OnMessage: OnMessage[] = [];
+    public OnMessageWithResponse: OnMessageWithResponse[] = [];
     client: net.Socket;
 
 
@@ -23,7 +26,7 @@ export class ClientConnection {
         this.client = new net.Socket();
         this.client.setKeepAlive(true);
         this.client.connect(1987, this.serverIp, () => {
-            console.log('Connected');
+            // console.log('Connected');
         });
 
         let continueBuffer = '';
@@ -49,7 +52,7 @@ export class ClientConnection {
         });
 
         this.client.on('close', () => {
-            console.log('Connection closed');
+            // console.log('Connection closed');
         });
     }
 

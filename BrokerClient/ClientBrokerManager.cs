@@ -6,23 +6,24 @@ using BrokerCommon.Models;
 
 namespace BrokerClient
 {
+
     public class ClientBrokerManager
     {
-        internal ClientConnection client;
+        internal SocketLayer client;
         private List<ClientPool> pools { get; } = new List<ClientPool>();
         public string MySwimmerId => client.Id;
 
         private Action onReady;
         private Action onDisconnect { get; set; }
-        private Action<Query> onMessage { get; set; }
-        private Action<Query, Action<Query>> onMessageWithResponse { get; set; }
+        private OnMessage onMessage { get; set; }
+        private OnMessageWithResponse  onMessageWithResponse { get; set; }
 
 
         public void ConnectToBroker(string ip)
         {
-            client = new ClientConnection("127.0.0.1");
-            client.OnMessage += (_, message) => onReceiveMessage(message);
-            client.OnMessageWithResponse += (_, message, respond) => onReceiveMessageWithResponse(message, respond);
+            client = new SocketLayer("127.0.0.1");
+            client.OnMessage += onReceiveMessage;
+            client.OnMessageWithResponse += onReceiveMessageWithResponse;
             client.OnDisconnect += _ => onDisconnect?.Invoke();
             client.StartFromClient();
             GetSwimmerId((id) =>
@@ -43,32 +44,32 @@ namespace BrokerClient
             this.onDisconnect = callback;
         }
 
-        public void OnMessage(Action<Query> callback)
+        public void OnMessage(OnMessage callback)
         {
             onMessage += callback;
         }
-        public void OnMessageWithResponse(Action<Query, Action<Query>> callback)
+        public void OnMessageWithResponse(OnMessageWithResponse callback)
         {
             onMessageWithResponse += callback;
         }
 
-        private void onReceiveMessageWithResponse(Query query, Action<Query> respond)
+        private void onReceiveMessageWithResponse(SocketLayer from, Query query, Action<Query> respond)
         {
             if (query.Contains("~ToSwimmer~"))
             {
-                onMessageWithResponse?.Invoke(query, respond);
+                onMessageWithResponse?.Invoke(from,query, respond);
                 return;
             }
             if (query.Contains("~ToPool~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPool~"]);
-                pool?.onMessageWithResponse?.Invoke(query, respond);
+                pool?.onMessageWithResponse?.Invoke(from,query, respond);
                 return;
             }
             if (query.Contains("~ToPoolAll~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPoolAll~"]);
-                pool?.onMessageWithResponse?.Invoke(query, (res) =>
+                pool?.onMessageWithResponse?.Invoke(from, query, (res) =>
                 {
                     res.Add("~PoolAllCount~", query["~PoolAllCount~"]);
                     respond(res);
@@ -79,23 +80,23 @@ namespace BrokerClient
 
 
 
-        private void onReceiveMessage(Query query)
+        private void onReceiveMessage(SocketLayer from,Query query)
         {
             if (query.Contains("~ToSwimmer~"))
             {
-                onMessage?.Invoke(query);
+                onMessage?.Invoke(from, query);
                 return;
             }
             if (query.Contains("~ToPool~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPool~"]);
-                pool?.onMessage.Invoke(query);
+                pool?.onMessage.Invoke(from, query);
                 return;
             }
             if (query.Contains("~ToPoolAll~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPoolAll~"]);
-                pool?.onMessage.Invoke(query);
+                pool?.onMessage.Invoke(from, query);
                 return;
             }
         }
@@ -111,6 +112,21 @@ namespace BrokerClient
             });
         }
 
+
+        public void SendMessage(string swimmerId, Query query)
+        {
+            query.Add("~ToSwimmer~", swimmerId);
+            client.SendMessage(query);
+        }
+
+        public void SendMessageWithResponse<T>(string swimmerId, Query query, Action<T> callback)
+        {
+            query.Add("~ToSwimmer~", swimmerId);
+            client.SendMessageWithResponse(query, (response) =>
+            {
+                callback(response.GetJson<T>());
+            });
+        }
 
         public void GetPool(string poolName, Action<ClientPool> callback)
         {
@@ -151,5 +167,6 @@ namespace BrokerClient
         {
             client.ForceDisconnect();
         }
+
     }
 }

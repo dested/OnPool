@@ -55,7 +55,7 @@
     <Compile Include="Models\GetAllPoolsResponse.cs" />
     <Compile Include="Models\GetSwimmerByPoolResponse.cs" />
     <Compile Include="Models\GetPoolByNameResponse.cs" />
-    <Compile Include="ClientConnection.cs" />
+    <Compile Include="SocketLayer.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="LocalBackgroundWorker.cs" />
     <Compile Include="Models\SwimmerResponse.cs" />

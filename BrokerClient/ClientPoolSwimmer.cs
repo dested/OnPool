@@ -22,7 +22,7 @@ namespace BrokerClient
             clientPool.clientBrokerManager.client.SendMessage(query);
         }
 
-        public void SendMessageWithResponse<T>(Query query, Action<T> callback) where T : class
+        public void SendMessageWithResponse<T>(Query query, Action<T> callback) 
         {
             query.Add("~ToSwimmer~", this.Id);
             clientPool.clientBrokerManager.client.SendMessageWithResponse(query, (response) =>

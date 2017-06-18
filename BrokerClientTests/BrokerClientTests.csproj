@@ -55,7 +55,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BrokerClient\BrokerClient.csproj">
-      <Project>{4F9CFC50-566D-464E-AD7D-E31F87451C34}</Project>
+      <Project>{4f9cfc50-566d-464e-ad7d-e31f87451c34}</Project>
       <Name>BrokerClient</Name>
     </ProjectReference>
     <ProjectReference Include="..\BrokerCommon\BrokerCommon.csproj">
@@ -63,7 +63,7 @@
       <Name>BrokerCommon</Name>
     </ProjectReference>
     <ProjectReference Include="..\BrokerServer\BrokerServer.csproj">
-      <Project>{56E47CBA-A6E3-4FF1-BABF-DBD353B80765}</Project>
+      <Project>{56e47cba-a6e3-4ff1-babf-dbd353b80765}</Project>
       <Name>BrokerServer</Name>
     </ProjectReference>
   </ItemGroup>

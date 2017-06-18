@@ -10,7 +10,11 @@ using System.Threading.Tasks;
 
 namespace BrokerCommon
 {
-    public class ClientConnection
+    public delegate void OnMessage(SocketLayer from, Query message);
+    public delegate void OnMessageWithResponse(SocketLayer from, Query message, Action<Query> respond);
+
+
+    public class SocketLayer
     {
         public string Id { get; set; }
         private bool disconnected = false;
@@ -19,19 +23,19 @@ namespace BrokerCommon
         private LocalBackgroundWorker<object, WorkerResponse> awaitMessagesWorker;
         private string serverIp;
 
-        public Action<ClientConnection> OnDisconnect { get; set; }
-        public Action<ClientConnection, Query> OnMessage { get; set; }
-        public Action<ClientConnection, Query, Action<Query>> OnMessageWithResponse { get; set; }
+        public Action<SocketLayer> OnDisconnect { get; set; }
+        public OnMessage OnMessage { get; set; }
+        public OnMessageWithResponse OnMessageWithResponse { get; set; }
         public static int counter = 0;
 
-        public ClientConnection(Socket socket)
+        public SocketLayer(Socket socket)
         {
             this.socket = socket;
             Id = Guid.NewGuid().ToString("N");
         }
 
 
-        public ClientConnection(string serverIp)
+        public SocketLayer(string serverIp)
         {
             this.serverIp = serverIp;
         }
@@ -48,7 +52,7 @@ namespace BrokerCommon
         {
             socket.ReceiveTimeout = 30000;
             socket.SendTimeout = 30000;
-            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive,0);
+            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, 0);
             awaitMessagesWorker = new LocalBackgroundWorker<object, WorkerResponse>();
             awaitMessagesWorker.DoWork += (worker, _) => Thread_MonitorStream(worker);
             awaitMessagesWorker.ReportResponse += (worker, response) => ReceiveResponse(response);

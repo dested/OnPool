@@ -37,7 +37,7 @@
         for (let key in this.QueryParams) {
             sb += key;
             sb += "=";
-            sb += this.QueryParams[key];
+            sb += encodeURIComponent(this.QueryParams[key]);
             sb += "&";
         }
         return sb;
@@ -61,7 +61,7 @@
             messageSplit[1].split('&').forEach((s) => {
                 if (s.length > 0) {
                     let querySplit = s.split('=');
-                    qparams.push(new QueryParam(querySplit[0], querySplit[1]));
+                    qparams.push(new QueryParam(querySplit[0], decodeURIComponent(querySplit[1])));
                 }
             });
         return new Query(messageSplit[0], ...qparams);

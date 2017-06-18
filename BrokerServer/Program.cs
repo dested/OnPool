@@ -20,8 +20,8 @@ namespace BrokerServer
                 while (true)
                 {
                     Thread.Sleep(1000);
-                    Console.WriteLine(ClientConnection.counter);
-                    ClientConnection.counter = 0;
+                    Console.WriteLine(SocketLayer.counter);
+                    SocketLayer.counter = 0;
                 }
             });
             threadManager.Process();

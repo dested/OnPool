@@ -34,12 +34,14 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var _this = this;
 Object.defineProperty(exports, "__esModule", { value: true });
 var clientBrokerManager_1 = require("./clientBrokerManager");
 var query_1 = require("./common/query");
 var tests_1 = require("./tests");
-function runTests() {
-    return __awaiter(this, void 0, void 0, function () {
+var shouldRunTests = true;
+if (shouldRunTests) {
+    var runTests = function () { return __awaiter(_this, void 0, void 0, function () {
         var tests, ex_1;
         return __generator(this, function (_a) {
             switch (_a.label) {
@@ -47,55 +49,60 @@ function runTests() {
                     tests = new tests_1.Tests();
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, 3, , 4]);
-                    //       await tests.run(tests.TestSwimmerResponse);
-                    //       await tests.run(tests.TestPoolResponse);
-                    //       await tests.run(tests.TestAllPoolResponse);
-                    //       await tests.run(tests.Test100ClientsAll);
-                    return [4 /*yield*/, tests.run(tests.TestSlammer)];
+                    _a.trys.push([1, 6, , 7]);
+                    return [4 /*yield*/, tests.run(tests.TestSwimmerResponse)];
                 case 2:
-                    //       await tests.run(tests.TestSwimmerResponse);
-                    //       await tests.run(tests.TestPoolResponse);
-                    //       await tests.run(tests.TestAllPoolResponse);
-                    //       await tests.run(tests.Test100ClientsAll);
                     _a.sent();
-                    return [3 /*break*/, 4];
+                    return [4 /*yield*/, tests.run(tests.TestPoolResponse)];
                 case 3:
+                    _a.sent();
+                    return [4 /*yield*/, tests.run(tests.TestAllPoolResponse)];
+                case 4:
+                    _a.sent();
+                    return [4 /*yield*/, tests.run(tests.Test100ClientsAll)];
+                case 5:
+                    _a.sent();
+                    return [3 /*break*/, 7];
+                case 6:
                     ex_1 = _a.sent();
                     console.error(ex_1);
-                    return [3 /*break*/, 4];
-                case 4: return [2 /*return*/];
+                    return [3 /*break*/, 7];
+                case 7: return [2 /*return*/];
             }
+        });
+    }); };
+    runTests();
+}
+else {
+    var c_1 = new clientBrokerManager_1.ClientBrokerManager();
+    c_1.ConnectToBroker("127.0.0.1");
+    c_1.OnDisconnect(function () {
+    });
+    c_1.OnMessage(function (from, message) {
+        console.log(message.ToString());
+    });
+    c_1.OnMessageWithResponse(function (from, message, respond) {
+        console.log(message.ToString());
+        respond(query_1.Query.BuildWithJson("Baz", 12));
+    });
+    c_1.OnReady(function () {
+        c_1.GetPool("GameServers", function (pool) {
+            pool.OnMessage(function (from, message) {
+                console.log(message.ToString());
+            });
+            pool.OnMessageWithResponse(function (from, message, respond) {
+                console.log(message.ToString());
+                respond(query_1.Query.BuildWithJson("Baz", 12));
+            });
+            pool.JoinPool(function () {
+                pool.SendMessage(query_1.Query.Build("CreateGame", new query_1.QueryParam("Name", "B")));
+                pool.SendAllMessage(query_1.Query.Build("WakeUp"));
+                pool.SendMessageWithResponse(query_1.Query.Build("CreateName"), function (message) {
+                });
+                pool.SendAllMessageWithResponse(query_1.Query.Build("WakeUp"), function (message) {
+                });
+            });
         });
     });
 }
-runTests();
-return;
-var c = new clientBrokerManager_1.ClientBrokerManager();
-c.ConnectToBroker("127.0.0.1");
-c.OnDisconnect(function () { });
-c.OnMessage(function (message) {
-    console.log(message.ToString());
-});
-c.OnMessageWithResponse(function (message, respond) {
-    console.log(message.ToString());
-    respond(query_1.Query.BuildWithJson("Baz", 12));
-});
-c.OnReady(function () {
-    c.GetPool("GameServers", function (pool) {
-        pool.OnMessage(function (message) {
-            console.log(message.ToString());
-        });
-        pool.OnMessageWithResponse(function (message, respond) {
-            console.log(message.ToString());
-            respond(query_1.Query.BuildWithJson("Baz", 12));
-        });
-        pool.JoinPool(function () {
-            pool.SendMessage(query_1.Query.Build("CreateGame", new query_1.QueryParam("Name", "B")));
-            pool.SendAllMessage(query_1.Query.Build("WakeUp"));
-            pool.SendMessageWithResponse(query_1.Query.Build("CreateName"), function (message) { });
-            pool.SendAllMessageWithResponse(query_1.Query.Build("WakeUp"), function (message) { });
-        });
-    });
-});
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL2FwcC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBQUEsNkRBQTJEO0FBQzNELHdDQUFtRDtBQUNuRCxpQ0FBOEI7QUFJOUI7O1lBQ1EsS0FBSzs7Ozs0QkFBRyxJQUFJLGFBQUssRUFBRTs7OztvQkFFM0Isb0RBQW9EO29CQUNwRCxpREFBaUQ7b0JBQ2pELG9EQUFvRDtvQkFDcEQsa0RBQWtEO29CQUMzQyxxQkFBTSxLQUFLLENBQUMsR0FBRyxDQUFDLEtBQUssQ0FBQyxXQUFXLENBQUMsRUFBQTs7b0JBSnpDLG9EQUFvRDtvQkFDcEQsaURBQWlEO29CQUNqRCxvREFBb0Q7b0JBQ3BELGtEQUFrRDtvQkFDM0MsU0FBa0MsQ0FBQzs7OztvQkFFbkMsT0FBTyxDQUFDLEtBQUssQ0FBQyxJQUFFLENBQUMsQ0FBQzs7Ozs7O0NBR3hCO0FBR0QsUUFBUSxFQUFFLENBQUM7QUFFWCxNQUFNLENBQUM7QUFDUCxJQUFJLENBQUMsR0FBRyxJQUFJLHlDQUFtQixFQUFFLENBQUM7QUFDbEMsQ0FBQyxDQUFDLGVBQWUsQ0FBQyxXQUFXLENBQUMsQ0FBQztBQUMvQixDQUFDLENBQUMsWUFBWSxDQUFDLGNBQU8sQ0FBQyxDQUFDLENBQUM7QUFDekIsQ0FBQyxDQUFDLFNBQVMsQ0FBQyxVQUFDLE9BQU87SUFDaEIsT0FBTyxDQUFDLEdBQUcsQ0FBQyxPQUFPLENBQUMsUUFBUSxFQUFFLENBQUMsQ0FBQztBQUNwQyxDQUFDLENBQUMsQ0FBQztBQUVILENBQUMsQ0FBQyxxQkFBcUIsQ0FBQyxVQUFDLE9BQU8sRUFBRSxPQUFPO0lBQ3JDLE9BQU8sQ0FBQyxHQUFHLENBQUMsT0FBTyxDQUFDLFFBQVEsRUFBRSxDQUFDLENBQUM7SUFDaEMsT0FBTyxDQUFDLGFBQUssQ0FBQyxhQUFhLENBQUMsS0FBSyxFQUFFLEVBQUUsQ0FBQyxDQUFDLENBQUM7QUFDNUMsQ0FBQyxDQUFDLENBQUM7QUFFSCxDQUFDLENBQUMsT0FBTyxDQUFDO0lBQ04sQ0FBQyxDQUFDLE9BQU8sQ0FBQyxhQUFhLEVBQ25CLFVBQUEsSUFBSTtRQUNBLElBQUksQ0FBQyxTQUFTLENBQUMsVUFBQyxPQUFPO1lBQ25CLE9BQU8sQ0FBQyxHQUFHLENBQUMsT0FBTyxDQUFDLFFBQVEsRUFBRSxDQUFDLENBQUM7UUFDcEMsQ0FBQyxDQUFDLENBQUM7UUFDSCxJQUFJLENBQUMscUJBQXFCLENBQUMsVUFBQyxPQUFPLEVBQUUsT0FBTztZQUN4QyxPQUFPLENBQUMsR0FBRyxDQUFDLE9BQU8sQ0FBQyxRQUFRLEVBQUUsQ0FBQyxDQUFDO1lBQ2hDLE9BQU8sQ0FBQyxhQUFLLENBQUMsYUFBYSxDQUFDLEtBQUssRUFBRSxFQUFFLENBQUMsQ0FBQyxDQUFDO1FBQzVDLENBQUMsQ0FBQyxDQUFDO1FBRUgsSUFBSSxDQUFDLFFBQVEsQ0FBQztZQUNWLElBQUksQ0FBQyxXQUFXLENBQUMsYUFBSyxDQUFDLEtBQUssQ0FBQyxZQUFZLEVBQUUsSUFBSSxrQkFBVSxDQUFDLE1BQU0sRUFBRSxHQUFHLENBQUMsQ0FBQyxDQUFDLENBQUM7WUFDekUsSUFBSSxDQUFDLGNBQWMsQ0FBQyxhQUFLLENBQUMsS0FBSyxDQUFDLFFBQVEsQ0FBQyxDQUFDLENBQUM7WUFFM0MsSUFBSSxDQUFDLHVCQUF1QixDQUFTLGFBQUssQ0FBQyxLQUFLLENBQUMsWUFBWSxDQUFDLEVBQUUsVUFBQyxPQUFPLElBQU0sQ0FBQyxDQUFDLENBQUM7WUFDakYsSUFBSSxDQUFDLDBCQUEwQixDQUFTLGFBQUssQ0FBQyxLQUFLLENBQUMsUUFBUSxDQUFDLEVBQUUsVUFBQyxPQUFPLElBQU0sQ0FBQyxDQUFDLENBQUM7UUFDcEYsQ0FBQyxDQUFDLENBQUM7SUFDUCxDQUFDLENBQUMsQ0FBQztBQUVYLENBQUMsQ0FBQyxDQUFDIn0=
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL2FwcC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxpQkFnRUE7O0FBaEVBLDZEQUEwRDtBQUMxRCx3Q0FBaUQ7QUFDakQsaUNBQThCO0FBRzlCLElBQUksY0FBYyxHQUFHLElBQUksQ0FBQztBQUUxQixFQUFFLENBQUMsQ0FBQyxjQUFjLENBQUMsQ0FBQyxDQUFDO0lBQ2pCLElBQUksUUFBUSxHQUFHO1lBQ1AsS0FBSzs7Ozs0QkFBRyxJQUFJLGFBQUssRUFBRTs7OztvQkFFeEIscUJBQU0sS0FBSyxDQUFDLEdBQUcsQ0FBQyxLQUFLLENBQUMsbUJBQW1CLENBQUMsRUFBQTs7b0JBQTFDLFNBQTBDLENBQUM7b0JBQzNDLHFCQUFNLEtBQUssQ0FBQyxHQUFHLENBQUMsS0FBSyxDQUFDLGdCQUFnQixDQUFDLEVBQUE7O29CQUF2QyxTQUF1QyxDQUFDO29CQUN4QyxxQkFBTSxLQUFLLENBQUMsR0FBRyxDQUFDLEtBQUssQ0FBQyxtQkFBbUIsQ0FBQyxFQUFBOztvQkFBMUMsU0FBMEMsQ0FBQztvQkFDM0MscUJBQU0sS0FBSyxDQUFDLEdBQUcsQ0FBQyxLQUFLLENBQUMsaUJBQWlCLENBQUMsRUFBQTs7b0JBQXhDLFNBQXdDLENBQUM7Ozs7b0JBR3BDLE9BQU8sQ0FBQyxLQUFLLENBQUMsSUFBRSxDQUFDLENBQUM7Ozs7O1NBR3pCLENBQUM7SUFDRixRQUFRLEVBQUUsQ0FBQztBQUVmLENBQUM7QUFBQyxJQUFJLENBQUMsQ0FBQztJQUNKLElBQUksR0FBQyxHQUFHLElBQUkseUNBQW1CLEVBQUUsQ0FBQztJQUNsQyxHQUFDLENBQUMsZUFBZSxDQUFDLFdBQVcsQ0FBQyxDQUFDO0lBQy9CLEdBQUMsQ0FBQyxZQUFZLENBQUM7SUFDZixDQUFDLENBQUMsQ0FBQztJQUNILEdBQUMsQ0FBQyxTQUFTLENBQUMsVUFBQyxJQUFJLEVBQUMsT0FBTztRQUNyQixPQUFPLENBQUMsR0FBRyxDQUFDLE9BQU8sQ0FBQyxRQUFRLEVBQUUsQ0FBQyxDQUFDO0lBQ3BDLENBQUMsQ0FBQyxDQUFDO0lBRUgsR0FBQyxDQUFDLHFCQUFxQixDQUFDLFVBQUMsSUFBSSxFQUFDLE9BQU8sRUFBRSxPQUFPO1FBQzFDLE9BQU8sQ0FBQyxHQUFHLENBQUMsT0FBTyxDQUFDLFFBQVEsRUFBRSxDQUFDLENBQUM7UUFDaEMsT0FBTyxDQUFDLGFBQUssQ0FBQyxhQUFhLENBQUMsS0FBSyxFQUFFLEVBQUUsQ0FBQyxDQUFDLENBQUM7SUFDNUMsQ0FBQyxDQUFDLENBQUM7SUFFSCxHQUFDLENBQUMsT0FBTyxDQUFDO1FBQ04sR0FBQyxDQUFDLE9BQU8sQ0FBQyxhQUFhLEVBQ25CLFVBQUEsSUFBSTtZQUNBLElBQUksQ0FBQyxTQUFTLENBQUMsVUFBQyxJQUFJLEVBQUMsT0FBTztnQkFDeEIsT0FBTyxDQUFDLEdBQUcsQ0FBQyxPQUFPLENBQUMsUUFBUSxFQUFFLENBQUMsQ0FBQztZQUNwQyxDQUFDLENBQUMsQ0FBQztZQUNILElBQUksQ0FBQyxxQkFBcUIsQ0FBQyxVQUFDLElBQUksRUFBQyxPQUFPLEVBQUUsT0FBTztnQkFDN0MsT0FBTyxDQUFDLEdBQUcsQ0FBQyxPQUFPLENBQUMsUUFBUSxFQUFFLENBQUMsQ0FBQztnQkFDaEMsT0FBTyxDQUFDLGFBQUssQ0FBQyxhQUFhLENBQUMsS0FBSyxFQUFFLEVBQUUsQ0FBQyxDQUFDLENBQUM7WUFDNUMsQ0FBQyxDQUFDLENBQUM7WUFFSCxJQUFJLENBQUMsUUFBUSxDQUFDO2dCQUNWLElBQUksQ0FBQyxXQUFXLENBQUMsYUFBSyxDQUFDLEtBQUssQ0FBQyxZQUFZLEVBQUUsSUFBSSxrQkFBVSxDQUFDLE1BQU0sRUFBRSxHQUFHLENBQUMsQ0FBQyxDQUFDLENBQUM7Z0JBQ3pFLElBQUksQ0FBQyxjQUFjLENBQUMsYUFBSyxDQUFDLEtBQUssQ0FBQyxRQUFRLENBQUMsQ0FBQyxDQUFDO2dCQUUzQyxJQUFJLENBQUMsdUJBQXVCLENBQVMsYUFBSyxDQUFDLEtBQUssQ0FBQyxZQUFZLENBQUMsRUFBRSxVQUFDLE9BQU87Z0JBQ3hFLENBQUMsQ0FBQyxDQUFDO2dCQUNILElBQUksQ0FBQywwQkFBMEIsQ0FBUyxhQUFLLENBQUMsS0FBSyxDQUFDLFFBQVEsQ0FBQyxFQUFFLFVBQUMsT0FBTztnQkFDdkUsQ0FBQyxDQUFDLENBQUM7WUFDUCxDQUFDLENBQUMsQ0FBQztRQUNQLENBQUMsQ0FBQyxDQUFDO0lBRVgsQ0FBQyxDQUFDLENBQUM7QUFFUCxDQUFDIn0=

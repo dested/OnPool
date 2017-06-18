@@ -7,7 +7,10 @@
     "target": "es5",
     "inlineSourceMap": true,
     "noImplicitAny": true,
-    "lib": ["es7","dom"]
+    "lib": [ "es2015", "dom" ],
+    "typeRoots": [
+      "src/node_modules/@types"
+    ]
   },
   "files": [
     "src/app.ts"

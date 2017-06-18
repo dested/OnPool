@@ -1,5 +1,6 @@
 ﻿import {ClientBrokerManager} from "./clientBrokerManager";
 import {Query, QueryParam} from "./common/query";
+import {ClientConnection, OnMessage, OnMessageWithResponse} from "./common/clientConnection";
 import {GetPoolByNameResponse} from "./models/GetPoolByNameResponse";
 import {ClientPoolSwimmer} from "./clientPoolSwimmer";
 import {GetSwimmerByPoolResponse} from "./models/GetSwimmerByPoolResponse";
@@ -7,14 +8,14 @@ import {GetSwimmerByPoolResponse} from "./models/GetSwimmerByPoolResponse";
 export class ClientPool {
     public clientBrokerManager: ClientBrokerManager;
     public PoolName: string;
-    public onMessage: ((query: Query) => void)[]=[];
-    public onMessageWithResponse: ((query: Query, callback: (response: Query) => void) => void)[]=[];
+    public onMessage: OnMessage[]=[];
+    public onMessageWithResponse: OnMessageWithResponse[]=[];
 
-    public OnMessage(callback: (response: Query) => void): void {
+    public OnMessage(callback: OnMessage): void {
         this.onMessage.push(callback);
     }
 
-    public OnMessageWithResponse(callback: (query: Query, callback: (response: Query) => void) => void): void {
+    public OnMessageWithResponse(callback: OnMessageWithResponse): void {
         this.onMessageWithResponse.push(callback);
     }
 
@@ -27,7 +28,7 @@ export class ClientPool {
         var query = Query.Build("GetSwimmers", new QueryParam("PoolName", this.PoolName));
         this.clientBrokerManager.client.SendMessageWithResponse(query,
             (response) => {
-                callback((response.GetJson < GetSwimmerByPoolResponse>()).Swimmers
+                callback((response.GetJson<GetSwimmerByPoolResponse>()).Swimmers
                     .map(a => new ClientPoolSwimmer(this, a)));
             });
     }
@@ -58,23 +59,23 @@ export class ClientPool {
             });
     }
 
-    public SendAllMessageWithResponse<T>(query: Query, callback: (_: T) => void): void {
-        query.Add("~ToPoolAll~", this.PoolName);
-        this.clientBrokerManager.client.SendMessageWithResponse(query,
+    public SendAllMessageWithResponse<T>(message: Query, callback: (_: T) => void): void {
+        message.Add("~ToPoolAll~", this.PoolName);
+        this.clientBrokerManager.client.SendMessageWithResponse(message,
             (response) => {
                 callback(response.GetJson<T>());
             });
     }
 
-    public invokeMessageWithResponse(query: Query, respond: (query: Query) => void) {
+    public invokeMessageWithResponse(from:ClientConnection, message: Query, respond: (query: Query) => void) {
         for (var i = 0; i < this.onMessageWithResponse.length; i++) {
-            this.onMessageWithResponse[i](query, respond);
+            this.onMessageWithResponse[i](from,message, respond);
         }
     }
 
-    public invokeMessage(query: Query) {
+    public invokeMessage(from:ClientConnection,message: Query) {
         for (var i = 0; i < this.onMessage.length; i++) {
-            this.onMessage[i](query);
+            this.onMessage[i](from,message);
         }
     }
 }

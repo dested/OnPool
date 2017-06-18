@@ -6,13 +6,13 @@ namespace BrokerServer
 {
     public interface IServerBroker
     {
-        void AddSwimmer(ClientConnection client);
-        void RemoveSwimmer(ClientConnection client);
+        void AddSwimmer(SocketLayer client);
+        void RemoveSwimmer(SocketLayer client);
 
 
         GetAllPoolsResponse GetAllPools();
         GetPoolByNameResponse GetPoolByName(string poolName);
-        void JoinPool(ClientConnection client, string poolName);
+        void JoinPool(SocketLayer client, string poolName);
         GetSwimmerByPoolResponse GetSwimmersInPool(string poolName);
 
         void SendMessageToSwimmerWithResponse(Query query, Action<Query> respond);
