@@ -213,7 +213,6 @@ namespace BrokerClientTests
                     {
                         manager1.GetPool("GameServers", pool1 =>
                         {
-                            int poolHit = 0;
                             pool1.OnMessageWithResponse((q, respond) =>
                             {
                                 Assert.AreEqual(q.Method, "Bar");
@@ -274,7 +273,7 @@ namespace BrokerClientTests
 
 
         [TestMethod]
-        public void Test10ClientsAll()
+        public void Test100ClientsAll()
         {
             ServerBroker broker = null;
             SpinThread(() =>
@@ -289,7 +288,6 @@ namespace BrokerClientTests
                         {
                             manager.GetPool("GameServers", pool1 =>
                             {
-                                int poolHit = 0;
                                 pool1.OnMessageWithResponse((q, respond) =>
                                 {
                                     Assert.AreEqual(q.Method, "Bar");

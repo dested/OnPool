@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "removeComments": false,
+    "outDir": "dist/",
+    "target": "es5",
+    "inlineSourceMap": true,
+    "noImplicitAny": true,
+    "lib": ["es7","dom"]
+  },
+  "files": [
+    "src/app.ts"
+  ]
+}

@@ -64,22 +64,24 @@ namespace BrokerCommon
             qp.AddRange(queryParams);
             return new Query(method, qp.ToArray());
         }
-     
+
 
         public static Query Parse(string message)
         {
             var messageSplit = message.Split(new[] { '?' }, StringSplitOptions.RemoveEmptyEntries);
             List<QueryParam> qparams = new List<QueryParam>();
-            foreach (var s in messageSplit[1].Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries))
+            if (messageSplit.Length == 2)
             {
-                var querySplit = s.Split('=');
-                qparams.Add(new QueryParam(querySplit[0], querySplit[1]));
+                foreach (var s in messageSplit[1].Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var querySplit = s.Split('=');
+                    qparams.Add(new QueryParam(querySplit[0], querySplit[1]));
+                }
             }
-
             return new Query(messageSplit[0], qparams.ToArray());
         }
 
-        public  Query Respond(params QueryParam[] queryParams)
+        public Query Respond(params QueryParam[] queryParams)
         {
             return new Query(Method, queryParams);
         }

@@ -23,16 +23,16 @@ namespace BrokerServer
 
             server = new TcpListener(localAddr, port);
             server.Start();
-
-            var connectionListenerThread = new LocalBackgroundWorker<TcpListener, TcpClient>();
+            Console.WriteLine("Listening on "+port);
+            var connectionListenerThread = new LocalBackgroundWorker<TcpListener, Socket>();
             connectionListenerThread.DoWork += Thread_AwaitConnection;
             connectionListenerThread.ReportResponse += (_, client) => NewConnection(client);
             connectionListenerThread.Run(server);
         }
 
-        private void NewConnection(TcpClient tcpClient)
+        private void NewConnection(Socket socket)
         {
-            var client = new ClientConnection(tcpClient);
+            var client = new ClientConnection(socket);
             client.Start();
             Console.WriteLine("Connected Client " + client.Id);
             this.serverBroker.AddSwimmer(client);
@@ -122,25 +122,23 @@ namespace BrokerServer
             }
         }
 
-        private void Thread_AwaitConnection(LocalBackgroundWorker<TcpListener, TcpClient> worker, TcpListener server)
+        private void Thread_AwaitConnection(LocalBackgroundWorker<TcpListener, Socket> worker, TcpListener server)
         {
             try
             {
                 while (true)
                 {
-                    Console.WriteLine("Waiting for a connection... ");
-                    TcpClient tcpClient;
+                    Socket socket;
                     try
                     {
-                        tcpClient = server.AcceptTcpClient();
-                        Console.WriteLine("Got connection...");
+                        socket = server.AcceptSocket();
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine(ex);
                         continue;
                     }
-                    worker.SendResponse(tcpClient);
+                    worker.SendResponse(socket);
                 }
             }
             catch (SocketException e)

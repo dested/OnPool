@@ -4,14 +4,14 @@ using BrokerCommon.Models;
 
 namespace BrokerClient
 {
-    public class BrokerPoolSwimmer
+    public class ClientPoolSwimmer
     {
-        private BrokerPool brokerPool;
+        private ClientPool clientPool;
         public string Id { get; set; }
 
-        public BrokerPoolSwimmer(BrokerPool brokerPool, SwimmerResponse a)
+        public ClientPoolSwimmer(ClientPool clientPool, SwimmerResponse a)
         {
-            this.brokerPool = brokerPool;
+            this.clientPool = clientPool;
             this.Id = a.Id;
         }
 
@@ -19,12 +19,13 @@ namespace BrokerClient
         public void SendMessage(Query query)
         {
             query.Add("~ToSwimmer~", this.Id);
-            brokerPool.clientBrokerManager.client.SendMessage(query);
+            clientPool.clientBrokerManager.client.SendMessage(query);
         }
+
         public void SendMessageWithResponse<T>(Query query, Action<T> callback) where T : class
         {
             query.Add("~ToSwimmer~", this.Id);
-            brokerPool.clientBrokerManager.client.SendMessageWithResponse(query, (response) =>
+            clientPool.clientBrokerManager.client.SendMessageWithResponse(query, (response) =>
             {
                 callback(response.GetJson<T>());
             });

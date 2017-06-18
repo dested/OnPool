@@ -13,8 +13,8 @@ namespace BrokerCommon
     {
         public string Id { get; set; }
         private bool disconnected = false;
-        private TcpClient tcpClient;
-        private NetworkStream stream;
+        private Socket socket;
+
         private LocalBackgroundWorker<object, WorkerResponse> awaitMessagesWorker;
         private string serverIp;
 
@@ -23,9 +23,9 @@ namespace BrokerCommon
         public Action<ClientConnection, Query, Action<Query>> OnMessageWithResponse { get; set; }
         public static int counter = 0;
 
-        public ClientConnection(TcpClient tcpClient)
+        public ClientConnection(Socket socket)
         {
-            this.tcpClient = tcpClient;
+            this.socket = socket;
             Id = Guid.NewGuid().ToString("N");
         }
 
@@ -33,23 +33,19 @@ namespace BrokerCommon
         public ClientConnection(string serverIp)
         {
             this.serverIp = serverIp;
-            Id = Guid.NewGuid().ToString("N");
         }
 
 
         public void StartFromClient()
         {
-            tcpClient = new TcpClient(this.serverIp, 1987);
-
+            socket = new TcpClient(this.serverIp, 1987).Client;
             this.Start();
         }
 
         public void Start()
         {
-            stream = tcpClient.GetStream();
-            tcpClient.ReceiveTimeout = 30000;
-            tcpClient.SendTimeout = 30000;
-            stream = tcpClient.GetStream();
+            socket.ReceiveTimeout = 30000;
+            socket.SendTimeout = 30000;  
             awaitMessagesWorker = new LocalBackgroundWorker<object, WorkerResponse>();
             awaitMessagesWorker.DoWork += (worker, _) => Thread_MonitorStream(worker);
             awaitMessagesWorker.ReportResponse += (worker, response) => ReceiveResponse(response);
@@ -59,73 +55,82 @@ namespace BrokerCommon
         Dictionary<string, int> poolAllCounter = new Dictionary<string, int>();
         private void ReceiveResponse(WorkerResponse response)
         {
-            counter++;
-            switch (response.Result)
+            try
             {
-                case WorkerResult.Message:
+                counter++;
+                switch (response.Result)
+                {
+                    case WorkerResult.Message:
 
-                    var query = Query.Parse(response.Payload);
+                        var query = Query.Parse(response.Payload);
 
-                    if (query.Contains("~Response~"))
-                    {
-                        query.Remove("~Response~");
-                        if (messageResponses.ContainsKey(query["~ResponseKey~"]))
+                        if (query.Contains("~Response~"))
                         {
-                            var callback = messageResponses[query["~ResponseKey~"]];
-
-                            if (query.Contains("~PoolAllCount~"))
+                            query.Remove("~Response~");
+                            if (messageResponses.ContainsKey(query["~ResponseKey~"]))
                             {
-                                if (!poolAllCounter.ContainsKey(query["~ResponseKey~"]))
+                                var callback = messageResponses[query["~ResponseKey~"]];
+
+                                if (query.Contains("~PoolAllCount~"))
                                 {
-                                    poolAllCounter[query["~ResponseKey~"]] = 1;
+                                    if (!poolAllCounter.ContainsKey(query["~ResponseKey~"]))
+                                    {
+                                        poolAllCounter[query["~ResponseKey~"]] = 1;
+                                    }
+                                    else
+                                    {
+                                        poolAllCounter[query["~ResponseKey~"]] =
+                                            poolAllCounter[query["~ResponseKey~"]] + 1;
+                                    }
+
+                                    if (poolAllCounter[query["~ResponseKey~"]] == int.Parse(query["~PoolAllCount~"]))
+                                    {
+                                        messageResponses.Remove(query["~ResponseKey~"]);
+                                        poolAllCounter.Remove(query["~ResponseKey~"]);
+                                    }
                                 }
                                 else
                                 {
-                                    poolAllCounter[query["~ResponseKey~"]] = poolAllCounter[query["~ResponseKey~"]] + 1;
-                                }
-
-                                if (poolAllCounter[query["~ResponseKey~"]] == int.Parse(query["~PoolAllCount~"]))
-                                {
                                     messageResponses.Remove(query["~ResponseKey~"]);
-                                    poolAllCounter.Remove(query["~ResponseKey~"]);
                                 }
+                                query.Remove("~ResponseKey~");
+                                callback(query);
                             }
                             else
                             {
-                                messageResponses.Remove(query["~ResponseKey~"]);
+                                throw new Exception("Cannot find response callback");
                             }
+                        }
+                        else if (query.Contains("~ResponseKey~"))
+                        {
+                            var receiptId = query["~ResponseKey~"];
                             query.Remove("~ResponseKey~");
-                            callback(query);
+                            OnMessageWithResponse?.Invoke(this, query, (queryResponse) =>
+                                {
+                                    queryResponse.Add("~Response~");
+                                    queryResponse.Add("~ResponseKey~", receiptId);
+                                    SendMessage(queryResponse);
+                                }
+                            );
                         }
                         else
                         {
-                            throw new Exception("Cannot find response callback");
+                            OnMessage?.Invoke(this, query);
                         }
-                    }
-                    else if (query.Contains("~ResponseKey~"))
-                    {
-                        var receiptId = query["~ResponseKey~"];
-                        query.Remove("~ResponseKey~");
-                        OnMessageWithResponse?.Invoke(this, query, (queryResponse) =>
-                            {
-                                queryResponse.Add("~Response~");
-                                queryResponse.Add("~ResponseKey~", receiptId);
-                                SendMessage(queryResponse);
-                            }
-                        );
-                    }
-                    else
-                    {
-                        OnMessage?.Invoke(this, query);
-                    }
-                    break;
-                case WorkerResult.Disconnect:
-                    Disconnect();
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException();
+                        break;
+                    case WorkerResult.Disconnect:
+                        Disconnect();
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
             }
-
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed Receive message:");
+                Console.WriteLine($"{response.Result} {response.Payload}");
+                Console.WriteLine($"{ex}");
+            }
         }
 
         private void Disconnect()
@@ -139,6 +144,7 @@ namespace BrokerCommon
         }
 
         Dictionary<string, Action<Query>> messageResponses = new Dictionary<string, Action<Query>>();
+
         public bool SendMessageWithResponse(Query message, Action<Query> callback)
         {
             var responseKey = Guid.NewGuid().ToString("N");
@@ -151,7 +157,7 @@ namespace BrokerCommon
 
         public bool SendMessage(Query message)
         {
-            if (!tcpClient.Connected)
+            if (!socket.Connected)
             {
                 Disconnect();
                 return false;
@@ -161,7 +167,7 @@ namespace BrokerCommon
 
             try
             {
-                stream.Write(msg, 0, msg.Length);
+                socket.Send(msg);
             }
             catch (Exception ex)
             {
@@ -173,53 +179,88 @@ namespace BrokerCommon
         }
 
 
-
+        bool Thread_IsConnected()
+        {
+            if (socket.Connected)
+            {
+                if (socket.Poll(1, SelectMode.SelectRead))
+                {
+                    byte[] buffer = new byte[1];
+                    if (socket.Receive(buffer, SocketFlags.Peek) == 0)
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
         private void Thread_MonitorStream(LocalBackgroundWorker<object, WorkerResponse> worker)
         {
-            try
+            while (true)
             {
-                int i;
-                var bytes = new byte[256];
-                var continueBuffer = "";
-                while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
+                try
                 {
-                    if (i == 0)
+                    int i;
+                    var bytes = new byte[256];
+                    var continueBuffer = "";
+                    while ((i = socket.Receive(bytes)) != 0)
                     {
-                        Thread_Disconnected(worker);
-                        return;
-                    }
-
-                    //todo optimize 
-                    int lastZero = 0;
-                    for (int j = 0; j < i; j++)
-                    {
-                        var b = bytes[j];
-                        if (b == 0)
+                        if (i == 0)
                         {
-                            string data = Encoding.ASCII.GetString(bytes, lastZero, j - lastZero);
-                            lastZero = j + 1;
-                            worker.SendResponse(WorkerResponse.Message(continueBuffer + data));
-                            continueBuffer = "";
+                            if (!Thread_IsConnected())
+                            {
+                                Thread_Disconnected(worker);
+                                return;
+                            }
+                            continue;
+                        }
+
+                        int lastZero = 0;
+                        for (int j = 0; j < i; j++)
+                        {
+                            var b = bytes[j];
+                            if (b == 0)
+                            {
+                                string data = Encoding.ASCII.GetString(bytes, lastZero, j - lastZero);
+                                lastZero = j + 1;
+                                worker.SendResponse(WorkerResponse.Message(continueBuffer + data));
+                                continueBuffer = "";
+                            }
+                        }
+                        if (lastZero != i)
+                        {
+                            string data = Encoding.ASCII.GetString(bytes, lastZero, i - lastZero);
+                            continueBuffer += data;
                         }
                     }
-                    if (lastZero != i)
+                }
+                catch (IOException ex)
+                {
+                    if (Thread_IsConnected())
                     {
-                        string data = Encoding.ASCII.GetString(bytes, lastZero, i - lastZero);
-                        continueBuffer += data;
+                        continue;
                     }
-
-
+                    Thread_Disconnected(worker);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Receive Exception: {ex}");
+                    Thread_Disconnected(worker);
+                    return;
                 }
 
-            }
-            catch (IOException ex)
-            {
-                Thread_Disconnected(worker);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Receive Exception: {ex}");
-                Thread_Disconnected(worker);
             }
         }
 
@@ -231,8 +272,8 @@ namespace BrokerCommon
 
         public void ForceDisconnect()
         {
-            this.tcpClient.Close();
-            this.Disconnect();
+            socket.Close();
+            Disconnect();
         }
     }
 }

@@ -8,12 +8,8 @@ A simple real time server messaging manager, the next best thing to managing you
 Goals
 =====
 
-Real time messaging between n servers
+Real time messaging between groups of servers
 
-
-Cluster
-=======
-Just another serverbroker that sits between the other server brokers
 
 
 API
@@ -32,12 +28,6 @@ Register to listen for messages
 Send message with server response
 	request response
 
-
-
-Servers have IDs not IPs
-All messages have reciepts 
-	who got my Message
-	did anyone get my message
 
 
 Workflow

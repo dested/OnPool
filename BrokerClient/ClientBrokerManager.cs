@@ -6,17 +6,10 @@ using BrokerCommon.Models;
 
 namespace BrokerClient
 {
-
-    public delegate void GetSwimmerIdResponse(string id);
-    public delegate void GetPoolCallback(BrokerPool pool);
-    public delegate void GetAllPoolsCallback(GetAllPoolsResponse response);
-    public delegate void GetSwimmersCallback(BrokerPoolSwimmer[] swimmers);
-    public delegate void JoinPoolCallback();
-
     public class ClientBrokerManager
     {
         internal ClientConnection client;
-        private List<BrokerPool> pools { get; } = new List<BrokerPool>();
+        private List<ClientPool> pools { get; } = new List<ClientPool>();
         public string MySwimmerId => client.Id;
 
         private Action onReady;
@@ -75,7 +68,7 @@ namespace BrokerClient
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPoolAll~"]);
                 pool?.onMessageWithResponse?.Invoke(query, (res) =>
                 {
-                    res.Add("~PoolAllCount~",query["~PoolAllCount~"]);
+                    res.Add("~PoolAllCount~", query["~PoolAllCount~"]);
                     respond(res);
                 });
                 return;
@@ -88,7 +81,7 @@ namespace BrokerClient
         {
             if (query.Contains("~ToSwimmer~"))
             {
-               onMessage?.Invoke(query);
+                onMessage?.Invoke(query);
                 return;
             }
             if (query.Contains("~ToPool~"))
@@ -106,7 +99,7 @@ namespace BrokerClient
         }
 
 
-        public void GetSwimmerId(GetSwimmerIdResponse callback)
+        public void GetSwimmerId(Action<string> callback)
         {
             var query = Query.Build("GetSwimmerId");
 
@@ -117,17 +110,17 @@ namespace BrokerClient
         }
 
 
-        public void GetPool(string poolName, GetPoolCallback callback)
+        public void GetPool(string poolName, Action<ClientPool> callback)
         {
             var query = Query.Build("GetPool", new QueryParam("PoolName", poolName));
 
             client.SendMessageWithResponse(query, (response) =>
             {
                 var getPoolByNameResponse = response.GetJson<GetPoolByNameResponse>();
-                BrokerPool pool = pools.FirstOrDefault(a => a.PoolName == getPoolByNameResponse.PoolName);
+                ClientPool pool = pools.FirstOrDefault(a => a.PoolName == getPoolByNameResponse.PoolName);
                 if (pool == null)
                 {
-                    pools.Add(pool = new BrokerPool(this, getPoolByNameResponse));
+                    pools.Add(pool = new ClientPool(this, getPoolByNameResponse));
                 }
 
                 pool.PoolName = getPoolByNameResponse.PoolName;
@@ -135,7 +128,8 @@ namespace BrokerClient
                 callback(pool);
             });
         }
-        public void GetAllPools(string poolName, GetAllPoolsCallback callback)
+
+        public void GetAllPools(string poolName, Action<GetAllPoolsResponse> callback)
         {
             var query = Query.Build("GetAllPools");
 
