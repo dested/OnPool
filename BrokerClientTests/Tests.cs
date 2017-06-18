@@ -13,7 +13,7 @@ namespace BrokerClientTests
 {
 
     [TestClass]
-    public class UnitTest1
+    public class Tests
     {
         private LocalThreadManager threadManager;
 
@@ -270,6 +270,68 @@ namespace BrokerClientTests
                 client.Disconnet();
             }
             broker?.Disconnect();
+        }
+
+
+        [TestMethod]
+        public void Test10ClientsAll()
+        {
+            ServerBroker broker = null;
+            SpinThread(() =>
+            {
+                broker = new ServerBroker();
+
+                for (int i = 0; i < 100; i++)
+                {
+                    BuildClientManager((manager) =>
+                    {
+                        manager.OnReady(() =>
+                        {
+                            manager.GetPool("GameServers", pool1 =>
+                            {
+                                int poolHit = 0;
+                                pool1.OnMessageWithResponse((q, respond) =>
+                                {
+                                    Assert.AreEqual(q.Method, "Bar");
+                                    Assert.AreEqual(q.GetJson<int>(), 13);
+                                    respond(q.Respond(14));
+                                });
+
+                                pool1.JoinPool(() =>
+                                {
+                                });
+                            });
+                        });
+                    }); 
+                }
+
+
+                BuildClientManager((manager) =>
+                {
+                    manager.OnReady(() =>
+                    {
+                        manager.GetPool("GameServers", pool3 =>
+                        {
+                            int countHit = 0;
+                            pool3.SendAllMessageWithResponse<int>(Query.Build("Bar", 13), (m) =>
+                            {
+                                Assert.AreEqual(m, 14);
+                                countHit++;
+                                if (countHit == 100) threadManager.Kill();
+                            });
+                        });
+                    });
+                });
+
+
+            });
+
+            foreach (var client in clients)
+            {
+                client.Disconnet();
+            }
+            broker?.Disconnect();
+
         }
 
 
