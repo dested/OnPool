@@ -14,10 +14,95 @@ namespace BrokerServer
 
         public ServerBroker()
         {
-            this.serverManager = new ServerManager(this);
+            this.serverManager = new ServerManager(
+                AddSwimmer,
+                RemoveSwimmer,
+                ClientMessage,
+                ClientMessageWithResponse
+            );
             this.serverManager.StartServer();
         }
 
+
+        private void ClientMessage(ClientConnection client, Query query)
+        {
+            if (query.Contains("~ToSwimmer~"))
+            {
+                SendMessageToSwimmer(query);
+                return;
+            }
+            if (query.Contains("~ToPool~"))
+            {
+                SendMessageToPool(query);
+                return;
+            }
+            if (query.Contains("~ToPoolAll~"))
+            {
+                SendMessageToPoolAll(query);
+                return;
+            }
+
+            throw new Exception("Method not found: " + query.Method);
+
+        }
+
+        private void ClientMessageWithResponse(ClientConnection client, Query query, Action<Query> respond)
+        {
+            if (query.Contains("~ToSwimmer~"))
+            {
+                SendMessageToSwimmerWithResponse(query, respond);
+                return;
+            }
+            if (query.Contains("~ToPool~"))
+            {
+                SendMessageToPoolWithResponse(query, respond);
+                return;
+            }
+            if (query.Contains("~ToPoolAll~"))
+            {
+                SendMessageToPoolAllWithResponse(query, respond);
+                return;
+            }
+
+
+            switch (query.Method)
+            {
+                case "GetSwimmerId":
+                    {
+                        respond(Query.Build(query.Method, client.Id));
+                        break;
+                    }
+                case "GetAllPools":
+                    {
+                        var response = GetAllPools();
+                        respond(Query.Build(query.Method, response));
+                        break;
+                    }
+
+                case "GetPool":
+                    {
+                        var response = GetPoolByName(query["PoolName"]);
+                        respond(Query.Build(query.Method, response));
+                        break;
+                    }
+
+                case "JoinPool":
+                    {
+                        JoinPool(client, query["PoolName"]);
+                        respond(Query.Build(query.Method));
+                        break;
+                    }
+
+                case "GetSwimmers":
+                    {
+                        var response = GetSwimmersInPool(query["PoolName"]);
+                        respond(Query.Build(query.Method, response));
+                        break;
+                    }
+                default: throw new Exception("Method not found: " + query.Method);
+
+            }
+        }
 
         public void AddSwimmer(ClientConnection client)
         {

@@ -20,10 +20,8 @@ namespace BrokerClientTests
         [TestMethod]
         public void TestSwimmerResponse()
         {
-            ServerBroker broker = null;
             SpinThread(() =>
             {
-                broker = new ServerBroker();
                 BuildClientManager((manager1) =>
                 {
                     manager1.OnMessageWithResponse((query, respond) =>
@@ -95,11 +93,7 @@ namespace BrokerClientTests
                 });
 
             });
-            foreach (var client in clients)
-            {
-                client.Disconnet();
-            }
-            broker?.Disconnect();
+        
         }
 
 
@@ -107,10 +101,8 @@ namespace BrokerClientTests
         [TestMethod]
         public void TestPoolResponse()
         {
-            ServerBroker broker = null;
             SpinThread(() =>
             {
-                broker = new ServerBroker();
                 BuildClientManager((manager1) =>
                 {
                     manager1.OnReady(() =>
@@ -191,11 +183,6 @@ namespace BrokerClientTests
 
             });
 
-            foreach (var client in clients)
-            {
-                client.Disconnet();
-            }
-            broker?.Disconnect();
         }
 
 
@@ -203,10 +190,8 @@ namespace BrokerClientTests
         [TestMethod]
         public void TestAllPoolResponse()
         {
-            ServerBroker broker = null;
             SpinThread(() =>
             {
-                broker = new ServerBroker();
                 BuildClientManager((manager1) =>
                 {
                     manager1.OnReady(() =>
@@ -264,21 +249,14 @@ namespace BrokerClientTests
 
             });
 
-            foreach (var client in clients)
-            {
-                client.Disconnet();
-            }
-            broker?.Disconnect();
         }
 
 
         [TestMethod]
         public void Test100ClientsAll()
         {
-            ServerBroker broker = null;
             SpinThread(() =>
             {
-                broker = new ServerBroker();
 
                 for (int i = 0; i < 100; i++)
                 {
@@ -300,7 +278,7 @@ namespace BrokerClientTests
                                 });
                             });
                         });
-                    }); 
+                    });
                 }
 
 
@@ -323,16 +301,68 @@ namespace BrokerClientTests
 
 
             });
-
-            foreach (var client in clients)
-            {
-                client.Disconnet();
-            }
-            broker?.Disconnect();
-
         }
 
 
+        [TestMethod]
+        public void TestSlammer()
+        {
+            SpinThread(() =>
+            {
+
+                for (int i = 0; i < 10; i++)
+                {
+                    BuildClientManager((manager) =>
+                    {
+                        manager.OnReady(() =>
+                        {
+                            manager.GetPool("GameServers", pool1 =>
+                            {
+                                pool1.OnMessageWithResponse((q, respond) =>
+                                {
+                                    Assert.AreEqual(q.Method, "Bar");
+                                    Assert.AreEqual(q.GetJson<int>(), 13);
+                                    respond(q.Respond(14));
+                                });
+
+                                pool1.JoinPool(() =>
+                                {
+                                });
+                            });
+                        });
+                    });
+                }
+
+
+                BuildClientManager((manager) =>
+                {
+                    manager.OnReady(() =>
+                    {
+                        manager.GetPool("GameServers", pool3 =>
+                        {
+                            Action exec = null;
+                            exec = () =>
+                            {
+                                pool3.SendMessageWithResponse<int>(Query.Build("Bar", 13),
+                                    (m) =>
+                                    {
+                                        Assert.AreEqual(m, 14);
+                                        exec();
+                                    });
+                            };
+                            exec();
+                        });
+                    });
+                });
+
+
+            });
+             
+        }
+         
+
+
+        private ServerBroker broker ;
         private List<ClientBrokerManager> clients = new List<ClientBrokerManager>();
         private void BuildClientManager(Action<ClientBrokerManager> ready)
         {
@@ -345,10 +375,16 @@ namespace BrokerClientTests
         private void SpinThread(Action ready)
         {
             threadManager = LocalThreadManager.Start();
-
+//            broker=new ServerBroker();
             ready();
 
             threadManager.Process();
+            foreach (var client in clients)
+            {
+                client.Disconnet();
+            }
+            clients=new List<ClientBrokerManager>();
+//            broker?.Disconnect();
         }
 
 

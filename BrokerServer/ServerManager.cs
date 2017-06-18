@@ -7,22 +7,33 @@ namespace BrokerServer
 {
     public class ServerManager
     {
-        private readonly IServerBroker serverBroker;
+        private readonly Action<ClientConnection> _addClient;
+        private readonly Action<ClientConnection> _removeClient;
+        private readonly Action<ClientConnection, Query> _clientMessage;
+        private readonly Action<ClientConnection, Query, Action<Query>> _clientMessageWithResponse;
         private Socket server;
 
-        public ServerManager(IServerBroker serverBroker)
+        public ServerManager(
+            Action<ClientConnection> addClient,
+            Action<ClientConnection> removeClient,
+            Action<ClientConnection, Query> clientMessage,
+            Action<ClientConnection, Query, Action<Query>> clientMessageWithResponse
+            )
         {
-            this.serverBroker = serverBroker;
+            _addClient = addClient;
+            _removeClient = removeClient;
+            _clientMessage = clientMessage;
+            _clientMessageWithResponse = clientMessageWithResponse;
         }
 
         public void StartServer()
         {
 
-            var port = 1987; 
+            var port = 1987;
             server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             server.Bind(new IPEndPoint(IPAddress.Any, port));
             server.Listen(1000);
-            Console.WriteLine("Listening on "+port);
+            Console.WriteLine("Listening on " + port);
             var connectionListenerThread = new LocalBackgroundWorker<Socket, Socket>();
             connectionListenerThread.DoWork += Thread_AwaitConnection;
             connectionListenerThread.ReportResponse += (_, client) => NewConnection(client);
@@ -34,92 +45,12 @@ namespace BrokerServer
             var client = new ClientConnection(socket);
             client.Start();
             Console.WriteLine("Connected Client " + client.Id);
-            this.serverBroker.AddSwimmer(client);
+            _addClient(client);
             client.OnDisconnect += ClientDisconnected;
-            client.OnMessage += ClientMessage;
-            client.OnMessageWithResponse += ClientMessageWithResponse;
+            client.OnMessage += _clientMessage;
+            client.OnMessageWithResponse += _clientMessageWithResponse;
         }
 
-
-        private void ClientMessage(ClientConnection client, Query query)
-        {
-            if (query.Contains("~ToSwimmer~"))
-            {
-                this.serverBroker.SendMessageToSwimmer(query);
-                return;
-            }
-            if (query.Contains("~ToPool~"))
-            {
-                this.serverBroker.SendMessageToPool(query);
-                return;
-            }
-            if (query.Contains("~ToPoolAll~"))
-            {
-                this.serverBroker.SendMessageToPoolAll(query);
-                return;
-            }
-
-            throw new Exception("Method not found: " + query.Method);
-
-        }
-
-        private void ClientMessageWithResponse(ClientConnection client, Query query, Action<Query> respond)
-        {
-            if (query.Contains("~ToSwimmer~"))
-            {
-                this.serverBroker.SendMessageToSwimmerWithResponse(query, respond);
-                return;
-            }
-            if (query.Contains("~ToPool~"))
-            {
-                this.serverBroker.SendMessageToPoolWithResponse(query, respond);
-                return;
-            }
-            if (query.Contains("~ToPoolAll~"))
-            {
-                this.serverBroker.SendMessageToPoolAllWithResponse(query, respond);
-                return;
-            }
-
-
-            switch (query.Method)
-            {
-                case "GetSwimmerId":
-                    {
-                        respond(Query.Build(query.Method, client.Id));
-                        break;
-                    }
-                case "GetAllPools":
-                    {
-                        var response = this.serverBroker.GetAllPools();
-                        respond(Query.Build(query.Method, response));
-                        break;
-                    }
-
-                case "GetPool":
-                    {
-                        var response = this.serverBroker.GetPoolByName(query["PoolName"]);
-                        respond(Query.Build(query.Method, response));
-                        break;
-                    }
-
-                case "JoinPool":
-                    {
-                        serverBroker.JoinPool(client, query["PoolName"]);
-                        respond(Query.Build(query.Method));
-                        break;
-                    }
-
-                case "GetSwimmers":
-                    {
-                        var response = this.serverBroker.GetSwimmersInPool(query["PoolName"]);
-                        respond(Query.Build(query.Method, response));
-                        break;
-                    }
-                default: throw new Exception("Method not found: " + query.Method);
-
-            }
-        }
 
         private void Thread_AwaitConnection(LocalBackgroundWorker<Socket, Socket> worker, Socket server)
         {
@@ -155,7 +86,7 @@ namespace BrokerServer
         private void ClientDisconnected(ClientConnection client)
         {
             Console.WriteLine($"Client {client.Id} Disconnected");
-            serverBroker.RemoveSwimmer(client);
+            _removeClient(client);
         }
 
         public void Disconnect()
