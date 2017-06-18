@@ -21,6 +21,7 @@ export class ClientConnection {
 
     public StartFromClient(): void {
         this.client = new net.Socket();
+        this.client.setKeepAlive(true);
         this.client.connect(1987, this.serverIp, () => {
             console.log('Connected');
         });

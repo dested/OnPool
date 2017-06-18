@@ -8,7 +8,7 @@ namespace BrokerServer
     public class ServerManager
     {
         private readonly IServerBroker serverBroker;
-        private TcpListener server;
+        private Socket server;
 
         public ServerManager(IServerBroker serverBroker)
         {
@@ -18,13 +18,12 @@ namespace BrokerServer
         public void StartServer()
         {
 
-            var port = 1987;
-            IPAddress localAddr = IPAddress.Parse("127.0.0.1");
-
-            server = new TcpListener(localAddr, port);
-            server.Start();
+            var port = 1987; 
+            server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            server.Bind(new IPEndPoint(IPAddress.Any, port));
+            server.Listen(1000);
             Console.WriteLine("Listening on "+port);
-            var connectionListenerThread = new LocalBackgroundWorker<TcpListener, Socket>();
+            var connectionListenerThread = new LocalBackgroundWorker<Socket, Socket>();
             connectionListenerThread.DoWork += Thread_AwaitConnection;
             connectionListenerThread.ReportResponse += (_, client) => NewConnection(client);
             connectionListenerThread.Run(server);
@@ -122,7 +121,7 @@ namespace BrokerServer
             }
         }
 
-        private void Thread_AwaitConnection(LocalBackgroundWorker<TcpListener, Socket> worker, TcpListener server)
+        private void Thread_AwaitConnection(LocalBackgroundWorker<Socket, Socket> worker, Socket server)
         {
             try
             {
@@ -131,7 +130,7 @@ namespace BrokerServer
                     Socket socket;
                     try
                     {
-                        socket = server.AcceptSocket();
+                        socket = server.Accept();
                     }
                     catch (Exception ex)
                     {
@@ -147,7 +146,7 @@ namespace BrokerServer
             }
             finally
             {
-                server?.Stop();
+                server?.Close();
             }
         }
 
@@ -161,7 +160,7 @@ namespace BrokerServer
 
         public void Disconnect()
         {
-            server.Stop();
+            server.Close();
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -38,14 +39,16 @@ namespace BrokerCommon
 
         public void StartFromClient()
         {
-            socket = new TcpClient(this.serverIp, 1987).Client;
+            socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socket.Connect(new IPEndPoint(IPAddress.Parse(this.serverIp), 1987));
             this.Start();
         }
 
         public void Start()
         {
             socket.ReceiveTimeout = 30000;
-            socket.SendTimeout = 30000;  
+            socket.SendTimeout = 30000;
+            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive,0);
             awaitMessagesWorker = new LocalBackgroundWorker<object, WorkerResponse>();
             awaitMessagesWorker.DoWork += (worker, _) => Thread_MonitorStream(worker);
             awaitMessagesWorker.ReportResponse += (worker, response) => ReceiveResponse(response);
@@ -207,61 +210,63 @@ namespace BrokerCommon
         }
         private void Thread_MonitorStream(LocalBackgroundWorker<object, WorkerResponse> worker)
         {
-            while (true)
+            try
             {
-                try
+                int i;
+                var bytes = new byte[256];
+                var continueBuffer = "";
+                top:
+                while ((i = socket.Receive(bytes)) != 0)
                 {
-                    int i;
-                    var bytes = new byte[256];
-                    var continueBuffer = "";
-                    while ((i = socket.Receive(bytes)) != 0)
+                    if (i == 0)
                     {
-                        if (i == 0)
+                        if (!Thread_IsConnected())
                         {
-                            if (!Thread_IsConnected())
-                            {
-                                Thread_Disconnected(worker);
-                                return;
-                            }
-                            continue;
+                            Thread_Disconnected(worker);
+                            return;
                         }
-
-                        int lastZero = 0;
-                        for (int j = 0; j < i; j++)
-                        {
-                            var b = bytes[j];
-                            if (b == 0)
-                            {
-                                string data = Encoding.ASCII.GetString(bytes, lastZero, j - lastZero);
-                                lastZero = j + 1;
-                                worker.SendResponse(WorkerResponse.Message(continueBuffer + data));
-                                continueBuffer = "";
-                            }
-                        }
-                        if (lastZero != i)
-                        {
-                            string data = Encoding.ASCII.GetString(bytes, lastZero, i - lastZero);
-                            continueBuffer += data;
-                        }
-                    }
-                }
-                catch (IOException ex)
-                {
-                    if (Thread_IsConnected())
-                    {
                         continue;
                     }
-                    Thread_Disconnected(worker);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Receive Exception: {ex}");
-                    Thread_Disconnected(worker);
-                    return;
-                }
 
+                    int lastZero = 0;
+                    for (int j = 0; j < i; j++)
+                    {
+                        var b = bytes[j];
+                        if (b == 0)
+                        {
+                            string data = Encoding.ASCII.GetString(bytes, lastZero, j - lastZero);
+                            lastZero = j + 1;
+                            worker.SendResponse(WorkerResponse.Message(continueBuffer + data));
+                            continueBuffer = "";
+                        }
+                    }
+                    if (lastZero != i)
+                    {
+                        string data = Encoding.ASCII.GetString(bytes, lastZero, i - lastZero);
+                        continueBuffer += data;
+                    }
+                }
+                if (Thread_IsConnected())
+                {
+                    goto top;
+                }
+                else
+                {
+                    Thread_Disconnected(worker);
+                }
             }
+            catch (IOException ex)
+            {
+                Thread_Disconnected(worker);
+                return;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Receive Exception: {ex}");
+                Thread_Disconnected(worker);
+                return;
+            }
+
         }
 
         private void Thread_Disconnected(LocalBackgroundWorker<object, WorkerResponse> worker)
