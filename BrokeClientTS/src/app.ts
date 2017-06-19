@@ -9,11 +9,11 @@ if (shouldRunTests) {
     let runTests = async () => {
         var tests = new Tests();
         try {
-       await tests.run(tests.TestSwimmerResponse);
-       await tests.run(tests.TestPoolResponse);
-       await tests.run(tests.TestAllPoolResponse);
-       await tests.run(tests.Test100ClientsAll);
-//            await tests.run(tests.TestSlammer);
+       // await tests.run(tests.TestSwimmerResponse);
+       // await tests.run(tests.TestPoolResponse);
+       // await tests.run(tests.TestAllPoolResponse);
+       // await tests.run(tests.Test100ClientsAll);
+           await tests.run(tests.TestSlammer);
         } catch (ex) {
             console.error(ex);
         }

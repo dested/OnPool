@@ -31,7 +31,7 @@ namespace BrokerClient
                 });
                 manager1.OnReady(() =>
                 {
-                    manager1.GetPool("GameServers", pool =>
+                    manager1.GetPool("TestPool", pool =>
                     {
                         pool.JoinPool(() =>
                         {
@@ -45,7 +45,7 @@ namespace BrokerClient
                                 });
                                 manager2.OnReady(() =>
                                 {
-                                    manager2.GetPool("GameServers", pool2 =>
+                                    manager2.GetPool("TestPool", pool2 =>
                                     {
                                         pool2.JoinPool(() =>
                                         {
@@ -53,7 +53,7 @@ namespace BrokerClient
                                             {
                                                 manager3.OnReady(() =>
                                                 {
-                                                    manager3.GetPool("GameServers", pool3 =>
+                                                    manager3.GetPool("TestPool", pool3 =>
                                                     {
                                                         pool3.JoinPool(() =>
                                                         {
@@ -100,7 +100,7 @@ namespace BrokerClient
             {
                 manager1.OnReady(() =>
                 {
-                    manager1.GetPool("GameServers", pool1 =>
+                    manager1.GetPool("TestPool", pool1 =>
                     {
                         int poolHit = 0;
                         pool1.OnMessageWithResponse((from, message, respond) =>
@@ -125,7 +125,7 @@ namespace BrokerClient
                             {
                                 manager2.OnReady(() =>
                                 {
-                                    manager2.GetPool("GameServers", pool2 =>
+                                    manager2.GetPool("TestPool", pool2 =>
                                     {
                                         pool2.JoinPool(() =>
                                         {
@@ -140,7 +140,7 @@ namespace BrokerClient
                                             {
                                                 manager3.OnReady(() =>
                                                 {
-                                                    manager3.GetPool("GameServers", pool3 =>
+                                                    manager3.GetPool("TestPool", pool3 =>
                                                     {
                                                         int countHit = 0;
                                                         pool3.SendMessageWithResponse(Query.Build("Baz", 12), (m) =>
@@ -188,7 +188,7 @@ namespace BrokerClient
                         Assert.AreEqual(message.GetJson<int>(), 12);
                         respond(message.Respond(20));
                     });
-                    manager1.GetPool("GameServers", pool1 =>
+                    manager1.GetPool("TestPool", pool1 =>
                     {
                         pool1.JoinPool(() =>
                         {
@@ -196,7 +196,7 @@ namespace BrokerClient
                             {
                                 manager2.OnReady(() =>
                                 {
-                                    manager2.GetPool("GameServers", pool2 =>
+                                    manager2.GetPool("TestPool", pool2 =>
                                     {
                                         pool1.GetSwimmers((swimmers) =>
                                         {
@@ -223,7 +223,7 @@ namespace BrokerClient
             {
                 manager1.OnReady(() =>
                 {
-                    manager1.GetPool("GameServers", pool1 =>
+                    manager1.GetPool("TestPool", pool1 =>
                     {
                         pool1.OnMessageWithResponse((from, message, respond) =>
                         {
@@ -238,7 +238,7 @@ namespace BrokerClient
                             {
                                 manager2.OnReady(() =>
                                 {
-                                    manager2.GetPool("GameServers", pool2 =>
+                                    manager2.GetPool("TestPool", pool2 =>
                                     {
                                         pool2.JoinPool(() =>
                                         {
@@ -253,7 +253,7 @@ namespace BrokerClient
                                             {
                                                 manager3.OnReady(() =>
                                                 {
-                                                    manager3.GetPool("GameServers", pool3 =>
+                                                    manager3.GetPool("TestPool", pool3 =>
                                                     {
                                                         int countHit = 0;
                                                         pool3.SendAllMessageWithResponse(Query.Build("Bar", 13), (m) =>
@@ -284,7 +284,7 @@ namespace BrokerClient
                 {
                     manager.OnReady(() =>
                     {
-                        manager.GetPool("GameServers", pool1 =>
+                        manager.GetPool("TestPool", pool1 =>
                         {
                             pool1.OnMessageWithResponse((from, message, respond) =>
                             {
@@ -306,7 +306,7 @@ namespace BrokerClient
             {
                 manager.OnReady(() =>
                 {
-                    manager.GetPool("GameServers", pool3 =>
+                    manager.GetPool("TestPool", pool3 =>
                     {
                         int countHit = 0;
                         pool3.SendAllMessageWithResponse(Query.Build("Bar", 13), (m) =>
@@ -321,7 +321,7 @@ namespace BrokerClient
 
         }
 
-        public void TestSlammer()
+        public void TestSlammer(LocalThreadManager threadManager)
         {
             for (int i = 0; i < 10; i++)
             {
@@ -329,7 +329,7 @@ namespace BrokerClient
                 {
                     manager.OnReady(() =>
                     {
-                        manager.GetPool("GameServers", pool1 =>
+                        manager.GetPool("TestPool", pool1 =>
                         {
                             pool1.OnMessageWithResponse((from, message, respond) =>
                             {
@@ -351,7 +351,7 @@ namespace BrokerClient
             {
                 manager.OnReady(() =>
                 {
-                    manager.GetPool("GameServers", pool3 =>
+                    manager.GetPool("TestPool", pool3 =>
                     {
                         Action exec = null;
                         exec = () =>

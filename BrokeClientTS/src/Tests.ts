@@ -21,7 +21,7 @@ export class Tests {
                 respond(message.RespondWithJson("foo1"));
             });
             manager1.OnReady(() => {
-                manager1.GetPool("GameServers",
+                manager1.GetPool("TestPool",
                     pool => {
                         pool.JoinPool(() => {
                             this.BuildClientManager((manager2) => {
@@ -31,12 +31,12 @@ export class Tests {
                                     respond(message.RespondWithJson("foo2"));
                                 });
                                 manager2.OnReady(() => {
-                                    manager2.GetPool("GameServers",
+                                    manager2.GetPool("TestPool",
                                         pool2 => {
                                             pool2.JoinPool(() => {
                                                 this.BuildClientManager((manager3) => {
                                                     manager3.OnReady(() => {
-                                                        manager3.GetPool("GameServers",
+                                                        manager3.GetPool("TestPool",
                                                             pool3 => {
                                                                 pool3.JoinPool(() => {
                                                                     pool.GetSwimmers((swimmers) => {
@@ -82,7 +82,7 @@ export class Tests {
 
         this.BuildClientManager((manager1) => {
             manager1.OnReady(() => {
-                manager1.GetPool("GameServers",
+                manager1.GetPool("TestPool",
                     pool1 => {
                         let poolHit = 0;
                         pool1.OnMessageWithResponse((from, message, respond) => {
@@ -100,7 +100,7 @@ export class Tests {
                         pool1.JoinPool(() => {
                             this.BuildClientManager((manager2) => {
                                 manager2.OnReady(() => {
-                                    manager2.GetPool("GameServers",
+                                    manager2.GetPool("TestPool",
                                         pool2 => {
                                             pool2.JoinPool(() => {
                                                 pool2.OnMessageWithResponse((from, message, respond) => {
@@ -111,7 +111,7 @@ export class Tests {
 
                                                 this.BuildClientManager((manager3) => {
                                                     manager3.OnReady(() => {
-                                                        manager3.GetPool("GameServers",
+                                                        manager3.GetPool("TestPool",
                                                             pool3 => {
                                                                 let countHit = 0;
                                                                 pool3.SendMessageWithResponse(
@@ -166,12 +166,12 @@ export class Tests {
                     this.assertAreEqual(message.GetJson<number>(), 12, testFail);
                     respond(message.RespondWithJson(20));
                 });
-                manager1.GetPool("GameServers",
+                manager1.GetPool("TestPool",
                     pool1 => {
                         pool1.JoinPool(() => {
                             this.BuildClientManager((manager2) => {
                                 manager2.OnReady(() => {
-                                    manager2.GetPool("GameServers",
+                                    manager2.GetPool("TestPool",
                                         pool2 => {
                                             pool1.GetSwimmers((swimmers) => {
                                                 var swim = swimmers[0];
@@ -197,7 +197,7 @@ export class Tests {
 
         this.BuildClientManager((manager1) => {
             manager1.OnReady(() => {
-                manager1.GetPool("GameServers",
+                manager1.GetPool("TestPool",
                     pool1 => {
                         pool1.OnMessageWithResponse((from, message, respond) => {
                             this.assertAreEqual(message.Method, "Bar", testFail);
@@ -208,7 +208,7 @@ export class Tests {
                         pool1.JoinPool(() => {
                             this.BuildClientManager((manager2) => {
                                 manager2.OnReady(() => {
-                                    manager2.GetPool("GameServers",
+                                    manager2.GetPool("TestPool",
                                         pool2 => {
                                             pool2.JoinPool(() => {
                                                 pool2.OnMessageWithResponse((from, message, respond) => {
@@ -219,7 +219,7 @@ export class Tests {
 
                                                 this.BuildClientManager((manager3) => {
                                                     manager3.OnReady(() => {
-                                                        manager3.GetPool("GameServers",
+                                                        manager3.GetPool("TestPool",
                                                             pool3 => {
                                                                 let countHit = 0;
                                                                 pool3.SendAllMessageWithResponse(
@@ -251,7 +251,7 @@ export class Tests {
         for (let i = 0; i < 100; i++) {
             this.BuildClientManager((manager) => {
                 manager.OnReady(() => {
-                    manager.GetPool("GameServers2",
+                    manager.GetPool("TestPool2",
                         pool1 => {
                             pool1.OnMessageWithResponse((from, message, respond) => {
                                 this.assertAreEqual(message.Method, "Bar", testFail);
@@ -269,7 +269,7 @@ export class Tests {
 
         this.BuildClientManager((manager) => {
             manager.OnReady(() => {
-                manager.GetPool("GameServers2",
+                manager.GetPool("TestPool2",
                     pool3 => {
                         let countHit = 0;
                         pool3.SendAllMessageWithResponse(Query.BuildWithJson("Bar", 13),
@@ -290,7 +290,7 @@ export class Tests {
         for (let i = 0; i < 10; i++) {
             this.BuildClientManager((manager) => {
                 manager.OnReady(() => {
-                    manager.GetPool("GameServers",
+                    manager.GetPool("TestPool",
                         pool1 => {
                             pool1.OnMessageWithResponse((from, message, respond) => {
                                 this.assertAreEqual(message.Method, "Bar", testFail);
@@ -308,7 +308,7 @@ export class Tests {
 
         this.BuildClientManager((manager) => {
             manager.OnReady(() => {
-                manager.GetPool("GameServers",
+                manager.GetPool("TestPool",
                     pool3 => {
                         var exec = () => {
                             pool3.SendMessageWithResponse(Query.BuildWithJson("Bar", 13),

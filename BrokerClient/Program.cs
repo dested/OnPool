@@ -54,11 +54,11 @@ namespace BrokerClient
             var tc = new Tests();
 
             List<Action<LocalThreadManager>> tests = new List<Action<LocalThreadManager>>();
-            tests.Add(tc.TestSwimmerResponse);
-            tests.Add(tc.TestPoolResponse);
-            tests.Add(tc.TestDirectSwimmerResponse);
-            tests.Add(tc.TestAllPoolResponse);
-            tests.Add(tc.Test100ClientsAll);
+//            tests.Add(tc.TestSwimmerResponse);
+//            tests.Add(tc.TestPoolResponse);
+//            tests.Add(tc.TestDirectSwimmerResponse);
+//            tests.Add(tc.TestAllPoolResponse);
+            tests.Add(tc.TestSlammer);
 
 
 
