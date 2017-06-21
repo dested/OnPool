@@ -7,17 +7,17 @@ namespace BrokerClient
 {
     public class ClientPool
     {
-        internal readonly ClientBrokerManager clientBrokerManager;
-        private readonly Func<string, Swimmer> _getSwimmer;
+        internal readonly ClientBrokerManager client;
+        private readonly Func<string, ClientSwimmer> _getSwimmer;
         public string PoolName { get; set; }
         internal OnMessage onMessage { get; set; }
         internal OnMessageWithResponse onMessageWithResponse { get; set; }
 
-        public ClientPool(ClientBrokerManager clientBrokerManager, GetPoolByNameResponse response, Func<string, Swimmer> getSwimmer)
+        public ClientPool(ClientBrokerManager client, string poolName, Func<string, ClientSwimmer> getSwimmer)
         {
-            this.clientBrokerManager = clientBrokerManager;
+            this.client = client;
             _getSwimmer = getSwimmer;
-            PoolName = response.PoolName;
+            PoolName = poolName;
         }
         public void OnMessage(OnMessage callback)
         {
@@ -29,11 +29,11 @@ namespace BrokerClient
             onMessageWithResponse += callback;
         }
 
-        public void GetSwimmers(Action<Swimmer[]> callback)
+        public void GetSwimmers(Action<ClientSwimmer[]> callback)
         {
             var query = Query.Build("GetSwimmers", new QueryParam("PoolName", this.PoolName));
 
-            clientBrokerManager.client.SendMessageWithResponse(query, (response) =>
+            client.sendMessageWithResponse(query, (response) =>
             {
                 callback(
                     response.GetJson<GetSwimmerByPoolResponse>()
@@ -47,7 +47,7 @@ namespace BrokerClient
 
         public void JoinPool(Action callback)
         {
-            clientBrokerManager.client.SendMessageWithResponse(
+            client.sendMessageWithResponse(
                 Query.Build("JoinPool", new QueryParam("PoolName", this.PoolName)),
                 (response) =>
                 {
@@ -59,25 +59,51 @@ namespace BrokerClient
         public void SendMessage(Query query)
         {
             query.Add("~ToPool~", this.PoolName);
-            clientBrokerManager.client.SendMessage(query);
+            client.sendMessage(query);
         }
 
         public void SendAllMessage(Query query)
         {
             query.Add("~ToPoolAll~", PoolName);
-            clientBrokerManager.client.SendMessage(query);
+            client.sendMessage(query);
         }
 
         public void SendMessageWithResponse(Query query, Action<Query> callback)
         {
             query.Add("~ToPool~", PoolName);
-            clientBrokerManager.client.SendMessageWithResponse(query, callback);
+            client.sendMessageWithResponse(query, callback);
         }
 
         public void SendAllMessageWithResponse(Query query, Action<Query> callback)
         {
             query.Add("~ToPoolAll~", PoolName);
-            clientBrokerManager.client.SendMessageWithResponse(query, callback);
+            client.sendMessageWithResponse(query, callback);
         }
     }
+    public class ClientSwimmer
+    {
+        private ClientBrokerManager client;
+        public string Id { get; set; }
+
+        public ClientSwimmer(ClientBrokerManager client, string swimmerId)
+        {
+            this.client = client;
+            this.Id = swimmerId;
+        }
+
+
+
+        public void SendMessage(Query query)
+        {
+            query.Add("~ToSwimmer~", this.Id);
+            this.client.sendMessage(query);
+        }
+
+        public void SendMessageWithResponse(Query query, Action<Query> callback)
+        {
+            query.Add("~ToSwimmer~", this.Id);
+            this.client.sendMessageWithResponse(query, callback);
+        }
+    }
+
 }

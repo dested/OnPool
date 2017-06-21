@@ -5,28 +5,15 @@ using BrokerCommon;
 
 namespace BrokerServer
 {
-    public class ServerManager
+    public class ClientListener
     {
-        private readonly Action<SocketLayer> _addClient;
-        private readonly Action<SocketLayer> _removeClient;
-        private readonly Func<string, Swimmer> _getSwimmer;
-        private readonly OnMessage _clientMessage;
-        private readonly OnMessageWithResponse _clientMessageWithResponse;
+        private readonly Action<Socket> _newConnection;
+
         private Socket server;
 
-        public ServerManager(
-            Action<SocketLayer> addClient,
-            Action<SocketLayer> removeClient,
-            Func<string,Swimmer> getSwimmer,
-            OnMessage clientMessage,
-            OnMessageWithResponse clientMessageWithResponse
-            )
+        public ClientListener(Action<Socket> newConnection)
         {
-            _addClient = addClient;
-            _removeClient = removeClient;
-            _getSwimmer = getSwimmer;
-            _clientMessage = clientMessage;
-            _clientMessageWithResponse = clientMessageWithResponse;
+            _newConnection = newConnection;
         }
 
         public void StartServer()
@@ -39,20 +26,11 @@ namespace BrokerServer
             Console.WriteLine("Listening on " + port);
             var connectionListenerThread = new LocalBackgroundWorker<Socket, Socket>();
             connectionListenerThread.DoWork += Thread_AwaitConnection;
-            connectionListenerThread.ReportResponse += ( client) => NewConnection(client);
+            connectionListenerThread.ReportResponse += ( client) => _newConnection(client);
             connectionListenerThread.Run(server);
         }
 
-        private void NewConnection(Socket socket)
-        {
-            var client = new SocketLayer(socket, _getSwimmer);
-            client.Start();
-            _addClient(client);
-            client.OnDisconnect += ClientDisconnected;
-            client.OnMessage += _clientMessage;
-            client.OnMessageWithResponse += _clientMessageWithResponse;
-        }
-
+   
 
         private void Thread_AwaitConnection(LocalBackgroundWorker<Socket, Socket> worker, Socket server)
         {
@@ -83,12 +61,7 @@ namespace BrokerServer
             }
         }
 
-
-
-        private void ClientDisconnected(SocketLayer client)
-        { 
-            _removeClient(client);
-        }
+         
 
         public void Disconnect()
         {

@@ -10,38 +10,33 @@ using System.Threading.Tasks;
 
 namespace BrokerCommon
 {
-    public delegate void OnMessage(Swimmer from, Query message);
-    public delegate void OnMessageWithResponse(Swimmer from, Query message, Action<Query> respond);
-
-
+   
     public class SocketLayer
     {
         public string Id { get; set; }
         private bool disconnected = false;
         private Socket socket;
-        private readonly Func<string, Swimmer> _getSwimmer;
+        private readonly Action<SocketLayer, Query> _onReceive;
 
         private LocalBackgroundWorker<object, WorkerResponse> awaitMessagesWorker;
         private string serverIp;
 
         public Action<SocketLayer> OnDisconnect { get; set; }
-        public OnMessage OnMessage { get; set; }
-        public OnMessageWithResponse OnMessageWithResponse { get; set; }
         public static int counter = 0;
 
-        public SocketLayer(Socket socket, Func<string, Swimmer> getSwimmer)
+        public SocketLayer(Socket socket, Action<SocketLayer,Query> onReceive)
         {
             this.socket = socket;
-            _getSwimmer = getSwimmer;
+            _onReceive = onReceive;
             Id = Guid.NewGuid().ToString("N");
             //            Console.WriteLine("Connected Client " + client.Id);
         }
 
 
-        public SocketLayer(string serverIp, Func<string, Swimmer> getSwimmer)
+        public SocketLayer(string serverIp, Action<SocketLayer, Query> onReceive)
         {
             this.serverIp = serverIp;
-            _getSwimmer = getSwimmer;
+            _onReceive = onReceive;
         }
 
 
@@ -63,7 +58,6 @@ namespace BrokerCommon
             awaitMessagesWorker.Run();
         }
 
-        Dictionary<string, int> poolAllCounter = new Dictionary<string, int>();
         private void ReceiveResponse(WorkerResponse response)
         {
             try
@@ -72,73 +66,7 @@ namespace BrokerCommon
                 switch (response.Result)
                 {
                     case WorkerResult.Message:
-
-                        var query = Query.Parse(response.Payload);
-
-                        Swimmer fromSwimmer;
-                        if (query.Contains("~FromSwimmer~"))
-                        {
-                            fromSwimmer = this._getSwimmer(query["~FromSwimmer~"]);
-                        }
-                        else
-                        {
-                            fromSwimmer = this._getSwimmer(Id);
-                        }
-                    
-
-                        if (query.Contains("~Response~"))
-                        {
-                            query.Remove("~Response~");
-                            if (messageResponses.ContainsKey(query["~ResponseKey~"]))
-                            {
-                                var callback = messageResponses[query["~ResponseKey~"]];
-
-                                if (query.Contains("~PoolAllCount~"))
-                                {
-                                    if (!poolAllCounter.ContainsKey(query["~ResponseKey~"]))
-                                    {
-                                        poolAllCounter[query["~ResponseKey~"]] = 1;
-                                    }
-                                    else
-                                    {
-                                        poolAllCounter[query["~ResponseKey~"]] =
-                                            poolAllCounter[query["~ResponseKey~"]] + 1;
-                                    }
-
-                                    if (poolAllCounter[query["~ResponseKey~"]] == int.Parse(query["~PoolAllCount~"]))
-                                    {
-                                        messageResponses.Remove(query["~ResponseKey~"]);
-                                        poolAllCounter.Remove(query["~ResponseKey~"]);
-                                    }
-                                }
-                                else
-                                {
-                                    messageResponses.Remove(query["~ResponseKey~"]);
-                                }
-                                query.Remove("~ResponseKey~");
-                                callback(query);
-                            }
-                            else
-                            {
-                                throw new Exception("Cannot find response callback");
-                            }
-                        }
-                        else if (query.Contains("~ResponseKey~"))
-                        {
-                            var receiptId = query["~ResponseKey~"];
-                            query.Remove("~ResponseKey~");
-                            OnMessageWithResponse?.Invoke(fromSwimmer, query, (queryResponse) =>
-                                {
-                                    queryResponse.Add("~Response~");
-                                    queryResponse.Add("~ResponseKey~", receiptId);
-                                    SendMessage(queryResponse);
-                                }
-                            );
-                        }
-                        else
-                        {
-                            OnMessage?.Invoke(fromSwimmer, query);
-                        }
+                        _onReceive(this,response.Query);
                         break;
                     case WorkerResult.Disconnect:
                         Disconnect();
@@ -149,11 +77,11 @@ namespace BrokerCommon
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Failed Receive message:");
-                Console.WriteLine($"{response.Result} {response.Payload}");
+                Console.WriteLine("Failed Process message:");
                 Console.WriteLine($"{ex}");
             }
         }
+
 
         private void Disconnect()
         {
@@ -163,19 +91,9 @@ namespace BrokerCommon
             }
             disconnected = true;
             OnDisconnect?.Invoke(this);
-//            Console.WriteLine("Disconnecting " + this.Id);
+            //            Console.WriteLine("Disconnecting " + this.Id);
         }
 
-        Dictionary<string, Action<Query>> messageResponses = new Dictionary<string, Action<Query>>();
-
-        public bool SendMessageWithResponse(Query message, Action<Query> callback)
-        {
-            var responseKey = Guid.NewGuid().ToString("N");
-            message.Add("~ResponseKey~", responseKey);
-            messageResponses[responseKey] = callback;
-
-            return SendMessage(message);
-        }
 
 
         public bool SendMessage(Query message)
@@ -186,14 +104,10 @@ namespace BrokerCommon
                 return false;
             }
 
-            if (this.Id != null && !message.Contains("~FromSwimmer~"))
-                message["~FromSwimmer~"] = this.Id;
-
-            byte[] msg = Encoding.ASCII.GetBytes(message + "\0");
 
             try
             {
-                socket.Send(msg);
+                socket.Send(message.GetBytes());
             }
             catch (Exception ex)
             {
@@ -237,7 +151,7 @@ namespace BrokerCommon
             {
                 int i;
                 var bytes = new byte[256];
-                var continueBuffer = "";
+                byte[] continueBuffer = null;
                 top:
                 while ((i = socket.Receive(bytes)) != 0)
                 {
@@ -257,16 +171,20 @@ namespace BrokerCommon
                         var b = bytes[j];
                         if (b == 0)
                         {
-                            string data = Encoding.ASCII.GetString(bytes, lastZero, j - lastZero);
+
+                            var response = WorkerResponse.FromQuery(continueBuffer, bytes, lastZero, j - lastZero);
                             lastZero = j + 1;
-                            worker.SendResponse(WorkerResponse.Message(continueBuffer + data));
-                            continueBuffer = "";
+                            if (response != null)
+                            {
+                                worker.SendResponse(response);
+                            }
+                            continueBuffer = null;
                         }
                     }
                     if (lastZero != i)
                     {
-                        string data = Encoding.ASCII.GetString(bytes, lastZero, i - lastZero);
-                        continueBuffer += data;
+                        continueBuffer = new byte[i - lastZero];
+                        Array.ConstrainedCopy(bytes, lastZero, continueBuffer, 0, i - lastZero);
                     }
                 }
                 if (Thread_IsConnected())

@@ -6,7 +6,6 @@ using System.Text;
 
 namespace BrokerCommon
 {
-    [DebuggerStepThrough]
     public class Query
     {
         private Query(string method, params QueryParam[] queryParams)
@@ -44,7 +43,7 @@ namespace BrokerCommon
         {
             this.QueryParams.Remove(key);
         }
-        public override string ToString()
+        public byte[] GetBytes()
         {
             StringBuilder sb = new StringBuilder();
             sb.Append(Method);
@@ -56,7 +55,8 @@ namespace BrokerCommon
                 sb.Append(Uri.EscapeDataString(query.Value));
                 sb.Append("&");
             }
-            return sb.ToString();
+
+            return Encoding.ASCII.GetBytes(sb.ToString() + "\0");
         }
 
         public static Query Build(string method, params QueryParam[] queryParams)
@@ -73,18 +73,29 @@ namespace BrokerCommon
 
         public static Query Parse(string message)
         {
-            var messageSplit = message.Split(new[] { '?' }, StringSplitOptions.RemoveEmptyEntries);
-            List<QueryParam> qparams = new List<QueryParam>();
-            if (messageSplit.Length == 2)
+            try
             {
-                var split = messageSplit[1].Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (var s in split)
+                var messageSplit = message.Split(new[] { '?' }, StringSplitOptions.RemoveEmptyEntries);
+
+                List<QueryParam> qparams = new List<QueryParam>();
+                if (messageSplit.Length == 2)
                 {
-                    var querySplit = s.Split('=');
-                    qparams.Add(new QueryParam(querySplit[0], Uri.UnescapeDataString(querySplit[1])));
+                    var split = messageSplit[1].Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var s in split)
+                    {
+                        var querySplit = s.Split('=');
+                        qparams.Add(new QueryParam(querySplit[0], Uri.UnescapeDataString(querySplit[1])));
+                    }
                 }
+                return new Query(messageSplit[0], qparams.ToArray());
             }
-            return new Query(messageSplit[0], qparams.ToArray());
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed Receive message:");
+                Console.WriteLine($"{message}");
+                Console.WriteLine($"{ex}");
+                return null;
+            }
         }
 
         public Query Respond(params QueryParam[] queryParams)

@@ -50,7 +50,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Swimmer.cs" />
     <Compile Include="ILocalBackgroundWorker.cs" />
     <Compile Include="LocalThreadManager.cs" />
     <Compile Include="Models\GetAllPoolsResponse.cs" />
