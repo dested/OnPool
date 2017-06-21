@@ -29,8 +29,6 @@ namespace BrokerClient
             client.StartFromClient();
             GetSwimmerId((id) =>
             {
-                Console.WriteLine("Got ClientId " + id);
-
                 client.Id = id;
                 this.onReady?.Invoke();
             });

@@ -34,6 +34,7 @@ namespace BrokerCommon
             this.socket = socket;
             _getSwimmer = getSwimmer;
             Id = Guid.NewGuid().ToString("N");
+            //            Console.WriteLine("Connected Client " + client.Id);
         }
 
 
@@ -58,7 +59,7 @@ namespace BrokerCommon
             socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, 0);
             awaitMessagesWorker = new LocalBackgroundWorker<object, WorkerResponse>();
             awaitMessagesWorker.DoWork += (worker, _) => Thread_MonitorStream(worker);
-            awaitMessagesWorker.ReportResponse += (worker, response) => ReceiveResponse(response);
+            awaitMessagesWorker.ReportResponse += ReceiveResponse;
             awaitMessagesWorker.Run();
         }
 
@@ -162,6 +163,7 @@ namespace BrokerCommon
             }
             disconnected = true;
             OnDisconnect?.Invoke(this);
+//            Console.WriteLine("Disconnecting " + this.Id);
         }
 
         Dictionary<string, Action<Query>> messageResponses = new Dictionary<string, Action<Query>>();
@@ -277,6 +279,11 @@ namespace BrokerCommon
                 }
             }
             catch (IOException ex)
+            {
+                Thread_Disconnected(worker);
+                return;
+            }
+            catch (SocketException ex)
             {
                 Thread_Disconnected(worker);
                 return;

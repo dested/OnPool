@@ -44,37 +44,42 @@ namespace BrokerClient
 
                 threadManager.Process();
 
-                Console.WriteLine("Done");
-                Console.ReadLine();
             }
+
+
+            Console.WriteLine("Running");
+            Console.ReadLine();
         }
 
-        public static void RunTests()
+        public static async Task RunTests()
         {
             var tc = new Tests();
 
             List<Action<LocalThreadManager>> tests = new List<Action<LocalThreadManager>>();
-//            tests.Add(tc.TestSwimmerResponse);
-//            tests.Add(tc.TestPoolResponse);
-//            tests.Add(tc.TestDirectSwimmerResponse);
-//            tests.Add(tc.TestAllPoolResponse);
+            tests.Add(tc.TestSwimmerResponse);
+            tests.Add(tc.TestPoolResponse);
+            tests.Add(tc.TestDirectSwimmerResponse);
+            tests.Add(tc.TestAllPoolResponse);
             tests.Add(tc.TestSlammer);
 
 
 
-            foreach (var test in tests)
+            while (true)
             {
-                var threadManager = LocalThreadManager.Start();
-                test(threadManager);
-                threadManager.Process();
-                Console.WriteLine("Test passed");
-                foreach (var clientBrokerManager in tc.clients)
+                foreach (var test in tests)
                 {
-                    clientBrokerManager.Disconnet();
+                    var threadManager = LocalThreadManager.Start();
+                    test(threadManager);
+                    await threadManager.Process();
+                    Console.WriteLine("Test passed");
+                    foreach (var clientBrokerManager in tc.clients)
+                    {
+                        clientBrokerManager.Disconnet();
+                    }
+                    tc.clients = new List<ClientBrokerManager>();
                 }
-                tc.clients = new List<ClientBrokerManager>();
-            }
 
+            }
 
             Console.WriteLine("Done");
 

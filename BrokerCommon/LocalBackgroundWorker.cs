@@ -31,7 +31,7 @@ namespace BrokerCommon
         }
 
         public Action<LocalBackgroundWorker<TPayload, TResponse>, TPayload> DoWork { get; set; }
-        public Action<LocalBackgroundWorker<TPayload, TResponse>, TResponse> ReportResponse { get; set; }
+        public Action<TResponse> ReportResponse { get; set; }
 
         public void Run(TPayload payload)
         {
@@ -52,7 +52,7 @@ namespace BrokerCommon
                 };
                 bw.ProgressChanged += (_, __) =>
                 {
-                    this.ReportResponse(this, (TResponse) __.UserState);
+                    this.ReportResponse((TResponse) __.UserState);
                 };
                 bw.RunWorkerAsync(payload);
             }
@@ -63,7 +63,7 @@ namespace BrokerCommon
         }
 
         private List<TResponse> responses = new List<TResponse>();
-
+        private bool noResponses = true;
         public void SendResponse(TResponse response)
         {
             if (UserLocalWorker)
@@ -72,6 +72,7 @@ namespace BrokerCommon
                 lock (responses)
                 {
                     responses.Add(response);
+                    noResponses = false;
                 }
             }
             else
@@ -79,25 +80,24 @@ namespace BrokerCommon
                 bw.ReportProgress(0, response);
             }
         }
-
         public object TryGetResponse()
         {
+            if (noResponses)
+            {
+                return null;
+            }
             lock (responses)
             {
-                if (responses.Count == 0)
-                {
-                    return null;
-                }
-
                 var response = responses[0];
                 responses.RemoveAt(0);
+                noResponses = responses.Count == 0;
                 return response;
             }
         }
 
         public void ProcessResponseMainThread(object response)
         {
-            this.ReportResponse(this, (TResponse)response);
+            this.ReportResponse((TResponse)response);
         }
     }
 

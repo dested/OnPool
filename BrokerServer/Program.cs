@@ -25,6 +25,8 @@ namespace BrokerServer
                 }
             });
             threadManager.Process();
+            Console.WriteLine("Running..");
+            Console.ReadLine();
         }
     }
 }

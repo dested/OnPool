@@ -77,7 +77,8 @@ namespace BrokerCommon
             List<QueryParam> qparams = new List<QueryParam>();
             if (messageSplit.Length == 2)
             {
-                foreach (var s in messageSplit[1].Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries))
+                var split = messageSplit[1].Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var s in split)
                 {
                     var querySplit = s.Split('=');
                     qparams.Add(new QueryParam(querySplit[0], Uri.UnescapeDataString(querySplit[1])));

@@ -39,7 +39,7 @@ namespace BrokerServer
             Console.WriteLine("Listening on " + port);
             var connectionListenerThread = new LocalBackgroundWorker<Socket, Socket>();
             connectionListenerThread.DoWork += Thread_AwaitConnection;
-            connectionListenerThread.ReportResponse += (_, client) => NewConnection(client);
+            connectionListenerThread.ReportResponse += ( client) => NewConnection(client);
             connectionListenerThread.Run(server);
         }
 
@@ -47,7 +47,6 @@ namespace BrokerServer
         {
             var client = new SocketLayer(socket, _getSwimmer);
             client.Start();
-            Console.WriteLine("Connected Client " + client.Id);
             _addClient(client);
             client.OnDisconnect += ClientDisconnected;
             client.OnMessage += _clientMessage;
@@ -87,8 +86,7 @@ namespace BrokerServer
 
 
         private void ClientDisconnected(SocketLayer client)
-        {
-            Console.WriteLine($"Client {client.Id} Disconnected");
+        { 
             _removeClient(client);
         }
 

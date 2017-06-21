@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace BrokerCommon
 {
@@ -23,22 +24,25 @@ namespace BrokerCommon
             return _instance;
         }
 
-        public void Process()
+        public Task Process()
         {
-            while (alive)
+            return Task.Run(() =>
             {
-
-                var tempWorkers = workers.ToArray();
-                foreach (var worker in tempWorkers)
+                while (alive)
                 {
-                    object response;
-                    while ((response = worker.TryGetResponse()) != null)
-                    {
-                        worker.ProcessResponseMainThread(response);
-                    }
-                }
 
-            }
+                    for (var index = workers.Count - 1; index >= 0; index--)
+                    {
+                        var worker = workers[index];
+                        object response = worker.TryGetResponse();
+                        if (response != null)
+                        {
+                            worker.ProcessResponseMainThread(response);
+                        }
+                    }
+
+                }
+            });
         }
 
 
