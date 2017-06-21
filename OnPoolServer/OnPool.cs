@@ -5,22 +5,21 @@ using OnPoolCommon;
 
 namespace OnPoolServer
 {
-    class Program
+    internal class OnPool
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
-
             var threadManager = LocalThreadManager.Start();
-            var broker = new ServerBroker();
             Task.Run(() =>
             {
                 while (true)
                 {
                     Thread.Sleep(1000);
-                    Console.WriteLine(SocketLayer.counter);
-                    SocketLayer.counter = 0;
+                    Console.WriteLine(SocketLayer.Counter);
+                    SocketLayer.Counter = 0;
                 }
             });
+            var broker = new OnPoolManager();
             threadManager.Process();
             Console.WriteLine("Running..");
             Console.ReadLine();

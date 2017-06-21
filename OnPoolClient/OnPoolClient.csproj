@@ -48,8 +48,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ClientPool.cs" />
-    <Compile Include="ClientBrokerManager.cs" />
+    <Compile Include="Pool.cs" />
+    <Compile Include="OnPoolClient.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Tests.cs" />

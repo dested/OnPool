@@ -5,23 +5,24 @@ namespace OnPoolCommon
 {
     public class LocalThreadManager
     {
-        private static LocalThreadManager _instance;
-        private bool alive { get; set; }
+        private static LocalThreadManager instance;
+        private readonly List<ILocalBackgroundWorker> workers = new List<ILocalBackgroundWorker>();
+        private bool alive;
 
         private LocalThreadManager()
         {
             alive = true;
         }
 
+
         public static LocalThreadManager Start()
         {
-            return _instance = new LocalThreadManager();
+            return instance = new LocalThreadManager();
         }
-        private List<ILocalBackgroundWorker> workers = new List<ILocalBackgroundWorker>();
 
         public static LocalThreadManager GetInstance()
         {
-            return _instance;
+            return instance;
         }
 
         public Task Process()
@@ -29,31 +30,25 @@ namespace OnPoolCommon
             return Task.Run(() =>
             {
                 while (alive)
-                {
-
                     for (var index = workers.Count - 1; index >= 0; index--)
                     {
                         var worker = workers[index];
-                        object response = worker.TryGetResponse();
+                        var response = worker.TryGetResponse();
                         if (response != null)
-                        {
                             worker.ProcessResponseMainThread(response);
-                        }
                     }
-
-                }
             });
         }
 
 
         public void AddWorker(ILocalBackgroundWorker worker)
         {
-            this.workers.Add(worker);
+            workers.Add(worker);
         }
 
         public void Kill()
         {
-            this.alive = false;
+            alive = false;
         }
     }
 }

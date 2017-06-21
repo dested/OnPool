@@ -6,22 +6,23 @@ using System.Text;
 
 namespace OnPoolCommon
 {
+    [DebuggerStepThrough]
     public class Query
     {
         private Query(string method, params QueryParam[] queryParams)
         {
-            this.Method = method;
+            Method = method;
             QueryParams = queryParams.ToDictionary(a => a.Key, a => a.Value);
         }
 
         public Query(Query query)
         {
-            this.Method = query.Method;
-            this.QueryParams = new Dictionary<string, string>(query.QueryParams);
+            Method = query.Method;
+            QueryParams = new Dictionary<string, string>(query.QueryParams);
         }
 
         public string Method { get; set; }
-        private Dictionary<string, string> QueryParams { get; set; }
+        private Dictionary<string, string> QueryParams { get; }
 
         public string this[string key]
         {
@@ -29,7 +30,11 @@ namespace OnPoolCommon
             set { QueryParams[key] = value; }
         }
 
-        public bool Contains(string key) { return QueryParams.ContainsKey(key); }
+        public bool Contains(string key)
+        {
+            return QueryParams.ContainsKey(key);
+        }
+
         public void Add(string key, string value)
         {
             QueryParams.Add(key, value);
@@ -39,13 +44,15 @@ namespace OnPoolCommon
         {
             QueryParams.Add(key, "");
         }
+
         public void Remove(string key)
         {
-            this.QueryParams.Remove(key);
+            QueryParams.Remove(key);
         }
+
         public byte[] GetBytes()
         {
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
             sb.Append(Method);
             sb.Append("?");
             foreach (var query in QueryParams)
@@ -56,16 +63,17 @@ namespace OnPoolCommon
                 sb.Append("&");
             }
 
-            return Encoding.ASCII.GetBytes(sb.ToString() + "\0");
+            return Encoding.ASCII.GetBytes(sb + "\0");
         }
 
         public static Query Build(string method, params QueryParam[] queryParams)
         {
             return new Query(method, queryParams);
         }
+
         public static Query Build<T>(string method, T json, params QueryParam[] queryParams)
         {
-            var qp = new List<QueryParam>() { new QueryParam("Json", json.ToJson()) };
+            var qp = new List<QueryParam> {new QueryParam("Json", json.ToJson())};
             qp.AddRange(queryParams);
             return new Query(method, qp.ToArray());
         }
@@ -75,12 +83,12 @@ namespace OnPoolCommon
         {
             try
             {
-                var messageSplit = message.Split(new[] { '?' }, StringSplitOptions.RemoveEmptyEntries);
+                var messageSplit = message.Split(new[] {'?'}, StringSplitOptions.RemoveEmptyEntries);
 
-                List<QueryParam> qparams = new List<QueryParam>();
+                var qparams = new List<QueryParam>();
                 if (messageSplit.Length == 2)
                 {
-                    var split = messageSplit[1].Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries);
+                    var split = messageSplit[1].Split(new[] {'&'}, StringSplitOptions.RemoveEmptyEntries);
                     foreach (var s in split)
                     {
                         var querySplit = s.Split('=');
@@ -102,9 +110,10 @@ namespace OnPoolCommon
         {
             return new Query(Method, queryParams);
         }
+
         public Query Respond<T>(T json, params QueryParam[] queryParams)
         {
-            var qp = new List<QueryParam>() { new QueryParam("Json", json.ToJson()) };
+            var qp = new List<QueryParam> {new QueryParam("Json", json.ToJson())};
             qp.AddRange(queryParams);
             return new Query(Method, qp.ToArray());
         }
@@ -113,13 +122,11 @@ namespace OnPoolCommon
         public T GetJson<T>()
         {
             if (Contains("Json"))
-            {
                 return QueryParams["Json"].FromJson<T>();
-            }
             return default(T);
         }
-
     }
+
     [DebuggerStepThrough]
     public class QueryParam
     {
@@ -132,5 +139,4 @@ namespace OnPoolCommon
         public string Key { get; set; }
         public string Value { get; set; }
     }
-
 }

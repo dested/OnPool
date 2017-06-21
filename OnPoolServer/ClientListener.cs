@@ -7,18 +7,17 @@ namespace OnPoolServer
 {
     public class ClientListener
     {
-        private readonly Action<Socket> _newConnection;
+        private readonly Action<Socket> newConnection;
 
         private Socket server;
 
         public ClientListener(Action<Socket> newConnection)
         {
-            _newConnection = newConnection;
+            this.newConnection = newConnection;
         }
 
         public void StartServer()
         {
-
             var port = 1987;
             server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             server.Bind(new IPEndPoint(IPAddress.Any, port));
@@ -26,11 +25,10 @@ namespace OnPoolServer
             Console.WriteLine("Listening on " + port);
             var connectionListenerThread = new LocalBackgroundWorker<Socket, Socket>();
             connectionListenerThread.DoWork += Thread_AwaitConnection;
-            connectionListenerThread.ReportResponse += ( client) => _newConnection(client);
+            connectionListenerThread.ReportResponse += client => newConnection(client);
             connectionListenerThread.Run(server);
         }
 
-   
 
         private void Thread_AwaitConnection(LocalBackgroundWorker<Socket, Socket> worker, Socket server)
         {
@@ -61,7 +59,6 @@ namespace OnPoolServer
             }
         }
 
-         
 
         public void Disconnect()
         {

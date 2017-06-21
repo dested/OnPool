@@ -6,50 +6,46 @@ using OnPoolCommon.Models;
 
 namespace OnPoolClient
 {
-    public delegate void OnMessage(ClientSwimmer from, Query message);
-    public delegate void OnMessageWithResponse(ClientSwimmer from, Query message, Action<Query> respond);
+    public delegate void OnMessage(Swimmer from, Query message);
+
+    public delegate void OnMessageWithResponse(Swimmer from, Query message, Action<Query> respond);
 
 
-    public class ClientBrokerManager
+    public class OnPoolClient
     {
-        private SocketLayer server;
-        private List<ClientPool> pools { get; } = new List<ClientPool>();
-        private List<ClientSwimmer> swimmers { get; } = new List<ClientSwimmer>();
-        public string MySwimmerId => server.Id;
+        private readonly Dictionary<string, Action<Query>> messageResponses = new Dictionary<string, Action<Query>>();
+        private readonly Dictionary<string, int> poolAllCounter = new Dictionary<string, int>();
+        private readonly List<Pool> pools = new List<Pool>();
 
         private Action onReady;
-        private Action onDisconnect { get; set; }
-        private OnMessage onMessage { get; set; }
-        private OnMessageWithResponse onMessageWithResponse { get; set; }
+        private SocketLayer server;
+        private readonly List<Swimmer> swimmers = new List<Swimmer>();
+        private Action onDisconnect;
+        private OnMessage onMessage;
+        private OnMessageWithResponse onMessageWithResponse;
+
+        public string MySwimmerId => server.Id;
 
 
-        public void ConnectToBroker(string ip)
+        public void ConnectToServer(string ip)
         {
-            server = new SocketLayer("127.0.0.1", (_, query) => message(query));
+            server = new SocketLayer("127.0.0.1", (_, query) => messageProcess(query));
             server.OnDisconnect += _ => onDisconnect?.Invoke();
             server.StartFromClient();
-            GetSwimmerId((id) =>
+            GetSwimmerId(id =>
             {
                 server.Id = id;
-                this.onReady?.Invoke();
+                onReady?.Invoke();
             });
         }
 
-
-        Dictionary<string, Action<Query>> messageResponses = new Dictionary<string, Action<Query>>();
-        Dictionary<string, int> poolAllCounter = new Dictionary<string, int>();
-        private void message(Query query)
+        private void messageProcess(Query query)
         {
-
-            ClientSwimmer fromSwimmer;
+            Swimmer fromSwimmer;
             if (query.Contains("~FromSwimmer~"))
-            {
                 fromSwimmer = getSwimmerById(query["~FromSwimmer~"]);
-            }
             else
-            {
                 fromSwimmer = getSwimmerById(server.Id);
-            }
 
 
             if (query.Contains("~Response~"))
@@ -62,14 +58,10 @@ namespace OnPoolClient
                     if (query.Contains("~PoolAllCount~"))
                     {
                         if (!poolAllCounter.ContainsKey(query["~ResponseKey~"]))
-                        {
                             poolAllCounter[query["~ResponseKey~"]] = 1;
-                        }
                         else
-                        {
                             poolAllCounter[query["~ResponseKey~"]] =
                                 poolAllCounter[query["~ResponseKey~"]] + 1;
-                        }
 
                         if (poolAllCounter[query["~ResponseKey~"]] == int.Parse(query["~PoolAllCount~"]))
                         {
@@ -93,7 +85,7 @@ namespace OnPoolClient
             {
                 var receiptId = query["~ResponseKey~"];
                 query.Remove("~ResponseKey~");
-                onReceiveMessageWithResponse(fromSwimmer, query, (queryResponse) =>
+                onReceiveMessageWithResponse(fromSwimmer, query, queryResponse =>
                     {
                         queryResponse.Add("~Response~");
                         queryResponse.Add("~ResponseKey~", receiptId);
@@ -107,12 +99,12 @@ namespace OnPoolClient
             }
         }
 
-        private ClientSwimmer getSwimmerById(string id)
+        private Swimmer getSwimmerById(string id)
         {
             var swimmer = swimmers.FirstOrDefault(a => a.Id == id);
             if (swimmer == null)
             {
-                swimmer = new ClientSwimmer(this, id);
+                swimmer = new Swimmer(this, id);
                 swimmers.Add(swimmer);
             }
             return swimmer;
@@ -120,23 +112,25 @@ namespace OnPoolClient
 
         public void OnReady(Action callback)
         {
-            this.onReady = callback;
+            onReady = callback;
         }
+
         public void OnDisconnect(Action callback)
         {
-            this.onDisconnect = callback;
+            onDisconnect = callback;
         }
 
         public void OnMessage(OnMessage callback)
         {
             onMessage += callback;
         }
+
         public void OnMessageWithResponse(OnMessageWithResponse callback)
         {
             onMessageWithResponse += callback;
         }
 
-        private void onReceiveMessageWithResponse(ClientSwimmer from, Query query, Action<Query> respond)
+        private void onReceiveMessageWithResponse(Swimmer from, Query query, Action<Query> respond)
         {
             if (query.Contains("~ToSwimmer~"))
             {
@@ -146,24 +140,22 @@ namespace OnPoolClient
             if (query.Contains("~ToPool~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPool~"]);
-                pool?.onMessageWithResponse?.Invoke(from, query, respond);
+                pool?.ReceiveMessageWithResponse(from, query, respond);
                 return;
             }
             if (query.Contains("~ToPoolAll~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPoolAll~"]);
-                pool?.onMessageWithResponse?.Invoke(from, query, (res) =>
+                pool?.ReceiveMessageWithResponse(from, query, res =>
                 {
                     res.Add("~PoolAllCount~", query["~PoolAllCount~"]);
                     respond(res);
                 });
-                return;
             }
         }
 
 
-
-        private void onReceiveMessage(ClientSwimmer from, Query query)
+        private void onReceiveMessage(Swimmer from, Query query)
         {
             if (query.Contains("~ToSwimmer~"))
             {
@@ -173,14 +165,13 @@ namespace OnPoolClient
             if (query.Contains("~ToPool~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPool~"]);
-                pool?.onMessage.Invoke(from, query);
+                pool?.ReceiveMessage(from, query);
                 return;
             }
             if (query.Contains("~ToPoolAll~"))
             {
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPoolAll~"]);
-                pool?.onMessage.Invoke(from, query);
-                return;
+                pool?.ReceiveMessage(from, query);
             }
         }
 
@@ -188,10 +179,7 @@ namespace OnPoolClient
         public void GetSwimmerId(Action<string> callback)
         {
             var query = Query.Build("GetSwimmerId");
-            sendMessageWithResponse(query, (response) =>
-            {
-                callback(response.GetJson<string>());
-            });
+            sendMessageWithResponse(query, response => { callback(response.GetJson<string>()); });
         }
 
 
@@ -214,6 +202,7 @@ namespace OnPoolClient
             messageResponses[responseKey] = callback;
             sendMessage(query);
         }
+
         internal bool sendMessage(Query query)
         {
             if (server.Id != null && !query.Contains("~FromSwimmer~"))
@@ -221,7 +210,7 @@ namespace OnPoolClient
             return server.SendMessage(query);
         }
 
-        public void GetPool(string poolName, Action<ClientPool> callback)
+        public void GetPool(string poolName, Action<Pool> callback)
         {
             var pool = pools.FirstOrDefault(a => a.PoolName == poolName);
             if (pool != null)
@@ -232,14 +221,12 @@ namespace OnPoolClient
 
             var query = Query.Build("GetPool", new QueryParam("PoolName", poolName));
 
-            sendMessageWithResponse(query, (response) =>
+            sendMessageWithResponse(query, response =>
             {
                 var getPoolByNameResponse = response.GetJson<GetPoolByNameResponse>();
                 pool = pools.FirstOrDefault(a => a.PoolName == getPoolByNameResponse.PoolName);
                 if (pool == null)
-                {
-                    pools.Add(pool = new ClientPool(this, getPoolByNameResponse.PoolName, getSwimmerById));
-                }
+                    pools.Add(pool = new Pool(this, getPoolByNameResponse.PoolName, getSwimmerById));
 
                 pool.PoolName = getPoolByNameResponse.PoolName;
                 callback(pool);
@@ -250,16 +237,12 @@ namespace OnPoolClient
         {
             var query = Query.Build("GetAllPools");
 
-            sendMessageWithResponse(query, (response) =>
-            {
-                callback(response.GetJson<GetAllPoolsResponse>());
-            });
+            sendMessageWithResponse(query, response => { callback(response.GetJson<GetAllPoolsResponse>()); });
         }
 
         public void Disconnet()
         {
             server.ForceDisconnect();
         }
-
     }
 }

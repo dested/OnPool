@@ -47,9 +47,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
+    <Compile Include="OnPool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ServerBroker.cs" />
+    <Compile Include="OnPoolManager.cs" />
     <Compile Include="ClientListener.cs" />
     <Compile Include="ServerPool.cs" />
     <Compile Include="ServerSwimmer.cs" />

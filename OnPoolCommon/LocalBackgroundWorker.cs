@@ -7,80 +7,29 @@ namespace OnPoolCommon
 {
     public class LocalBackgroundWorker<TPayload, TResponse> : ILocalBackgroundWorker where TPayload : class
     {
+        private readonly BackgroundWorker bw;
+        private bool noResponses = true;
 
-        private bool UserLocalWorker => LocalThreadManager.GetInstance() != null;
-        public Thread Thread { get; set; }
-        private BackgroundWorker bw;
+        private readonly List<TResponse> responses = new List<TResponse>();
 
         public LocalBackgroundWorker()
         {
             if (UserLocalWorker)
-            {
                 LocalThreadManager.GetInstance().AddWorker(this);
-            
-            }
             else
-            {
                 bw = new BackgroundWorker();
-            }
         }
+
+        private bool UserLocalWorker => LocalThreadManager.GetInstance() != null;
 
         public Action<LocalBackgroundWorker<TPayload, TResponse>, TPayload> DoWork { get; set; }
         public Action<TResponse> ReportResponse { get; set; }
+        public Thread Thread { get; set; }
 
-        public void Run(TPayload payload)
-        {
-            if (UserLocalWorker)
-            {
-                Thread = new Thread(() =>
-                {
-                    this.DoWork(this, payload);
-                });
-                Thread.Start();
-            }
-            else
-            {
-                bw.WorkerReportsProgress = true;
-                bw.DoWork += (_, __) =>
-                {
-                    this.DoWork(this, payload);
-                };
-                bw.ProgressChanged += (_, __) =>
-                {
-                    this.ReportResponse((TResponse) __.UserState);
-                };
-                bw.RunWorkerAsync(payload);
-            }
-        }
-        public void Run()
-        {
-            Run(null);
-        }
-
-        private List<TResponse> responses = new List<TResponse>();
-        private bool noResponses = true;
-        public void SendResponse(TResponse response)
-        {
-            if (UserLocalWorker)
-            {
-
-                lock (responses)
-                {
-                    responses.Add(response);
-                    noResponses = false;
-                }
-            }
-            else
-            {
-                bw.ReportProgress(0, response);
-            }
-        }
         public object TryGetResponse()
         {
             if (noResponses)
-            {
                 return null;
-            }
             lock (responses)
             {
                 var response = responses[0];
@@ -92,8 +41,40 @@ namespace OnPoolCommon
 
         public void ProcessResponseMainThread(object response)
         {
-            this.ReportResponse((TResponse)response);
+            ReportResponse((TResponse) response);
+        }
+
+        public void Run(TPayload payload)
+        {
+            if (UserLocalWorker)
+            {
+                Thread = new Thread(() => { DoWork(this, payload); });
+                Thread.Start();
+            }
+            else
+            {
+                bw.WorkerReportsProgress = true;
+                bw.DoWork += (_, __) => { DoWork(this, payload); };
+                bw.ProgressChanged += (_, __) => { ReportResponse((TResponse) __.UserState); };
+                bw.RunWorkerAsync(payload);
+            }
+        }
+
+        public void Run()
+        {
+            Run(null);
+        }
+
+        public void SendResponse(TResponse response)
+        {
+            if (UserLocalWorker)
+                lock (responses)
+                {
+                    responses.Add(response);
+                    noResponses = false;
+                }
+            else
+                bw.ReportProgress(0, response);
         }
     }
-
 }

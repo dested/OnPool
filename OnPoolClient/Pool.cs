@@ -5,20 +5,32 @@ using OnPoolCommon.Models;
 
 namespace OnPoolClient
 {
-    public class ClientPool
+    public class Pool
     {
-        internal readonly ClientBrokerManager client;
-        private readonly Func<string, ClientSwimmer> _getSwimmer;
-        public string PoolName { get; set; }
-        internal OnMessage onMessage { get; set; }
-        internal OnMessageWithResponse onMessageWithResponse { get; set; }
+        private readonly Func<string, Swimmer> getSwimmer;
+        private readonly OnPoolClient client;
 
-        public ClientPool(ClientBrokerManager client, string poolName, Func<string, ClientSwimmer> getSwimmer)
+        public Pool(OnPoolClient client, string poolName, Func<string, Swimmer> getSwimmer)
         {
             this.client = client;
-            _getSwimmer = getSwimmer;
+            this.getSwimmer = getSwimmer;
             PoolName = poolName;
         }
+
+        public string PoolName { get; set; }
+        private OnMessage onMessage { get; set; }
+        private OnMessageWithResponse onMessageWithResponse { get; set; }
+
+
+        public void ReceiveMessage(Swimmer from, Query query)
+        {
+            onMessage?.Invoke(@from, query);
+        }
+        public void ReceiveMessageWithResponse(Swimmer from, Query query, Action<Query> respond)
+        {
+            onMessageWithResponse?.Invoke(from, query, respond);
+        }
+
         public void OnMessage(OnMessage callback)
         {
             onMessage += callback;
@@ -29,36 +41,32 @@ namespace OnPoolClient
             onMessageWithResponse += callback;
         }
 
-        public void GetSwimmers(Action<ClientSwimmer[]> callback)
+        public void GetSwimmers(Action<Swimmer[]> callback)
         {
-            var query = Query.Build("GetSwimmers", new QueryParam("PoolName", this.PoolName));
+            var query = Query.Build("GetSwimmers", new QueryParam("PoolName", PoolName));
 
-            client.sendMessageWithResponse(query, (response) =>
+            client.sendMessageWithResponse(query, response =>
             {
                 callback(
                     response.GetJson<GetSwimmerByPoolResponse>()
                         .Swimmers
-                        .Select(a => _getSwimmer(a.Id))
+                        .Select(a => getSwimmer(a.Id))
                         .ToArray()
                 );
             });
-
         }
 
         public void JoinPool(Action callback)
         {
             client.sendMessageWithResponse(
-                Query.Build("JoinPool", new QueryParam("PoolName", this.PoolName)),
-                (response) =>
-                {
-                    callback();
-                }
+                Query.Build("JoinPool", new QueryParam("PoolName", PoolName)),
+                response => { callback(); }
             );
         }
 
         public void SendMessage(Query query)
         {
-            query.Add("~ToPool~", this.PoolName);
+            query.Add("~ToPool~", PoolName);
             client.sendMessage(query);
         }
 
@@ -80,30 +88,30 @@ namespace OnPoolClient
             client.sendMessageWithResponse(query, callback);
         }
     }
-    public class ClientSwimmer
-    {
-        private ClientBrokerManager client;
-        public string Id { get; set; }
 
-        public ClientSwimmer(ClientBrokerManager client, string swimmerId)
+    public class Swimmer
+    {
+        private readonly OnPoolClient client;
+
+        public Swimmer(OnPoolClient client, string swimmerId)
         {
             this.client = client;
-            this.Id = swimmerId;
+            Id = swimmerId;
         }
 
+        public string Id { get; set; }
 
 
         public void SendMessage(Query query)
         {
-            query.Add("~ToSwimmer~", this.Id);
-            this.client.sendMessage(query);
+            query.Add("~ToSwimmer~", Id);
+            client.sendMessage(query);
         }
 
         public void SendMessageWithResponse(Query query, Action<Query> callback)
         {
-            query.Add("~ToSwimmer~", this.Id);
-            this.client.sendMessageWithResponse(query, callback);
+            query.Add("~ToSwimmer~", Id);
+            client.sendMessageWithResponse(query, callback);
         }
     }
-
 }
