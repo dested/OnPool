@@ -1,4 +1,4 @@
-namespace BrokerCommon.Models
+namespace OnPoolCommon.Models
 {
     public class SwimmerResponse
     {

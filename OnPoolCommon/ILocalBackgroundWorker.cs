@@ -1,6 +1,6 @@
 using System.Threading;
 
-namespace BrokerCommon
+namespace OnPoolCommon
 {
     public interface ILocalBackgroundWorker
     {

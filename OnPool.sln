@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrokerServer", "BrokerServer\BrokerServer.csproj", "{56E47CBA-A6E3-4FF1-BABF-DBD353B80765}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnPoolServer", "OnPoolServer\OnPoolServer.csproj", "{56E47CBA-A6E3-4FF1-BABF-DBD353B80765}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrokerClient", "BrokerClient\BrokerClient.csproj", "{4F9CFC50-566D-464E-AD7D-E31F87451C34}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnPoolClient", "OnPoolClient\OnPoolClient.csproj", "{4F9CFC50-566D-464E-AD7D-E31F87451C34}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrokerCommon", "BrokerCommon\BrokerCommon.csproj", "{895ED083-B79F-42E9-BF6F-870DA993962D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnPoolCommon", "OnPoolCommon\OnPoolCommon.csproj", "{895ED083-B79F-42E9-BF6F-870DA993962D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrokeClientTS", "BrokeClientTS\BrokeClientTS.csproj", "{C0D4A02E-F3C2-49BC-A622-09A74EAF9D7B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnPoolClientTS", "OnPoolClientTS\OnPoolClientTS.csproj", "{C0D4A02E-F3C2-49BC-A622-09A74EAF9D7B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

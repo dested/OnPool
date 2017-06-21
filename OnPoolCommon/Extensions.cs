@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using Newtonsoft.Json;
 
-namespace BrokerCommon
+namespace OnPoolCommon
 {
     [DebuggerStepThrough]
     public static class Extensions

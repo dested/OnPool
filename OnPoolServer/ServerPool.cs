@@ -1,7 +1,6 @@
 using System.Collections.Generic;
-using BrokerCommon;
 
-namespace BrokerServer
+namespace OnPoolServer
 {
     public class ServerPool
     {

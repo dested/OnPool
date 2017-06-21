@@ -1,9 +1,9 @@
 using System;
 using System.Linq;
-using BrokerCommon;
-using BrokerCommon.Models;
+using OnPoolCommon;
+using OnPoolCommon.Models;
 
-namespace BrokerClient
+namespace OnPoolClient
 {
     public class ClientPool
     {

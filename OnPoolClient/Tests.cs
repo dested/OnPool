@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using BrokerCommon;
+using OnPoolCommon;
 
-namespace BrokerClient
+namespace OnPoolClient
 {
     public static class Assert
     {

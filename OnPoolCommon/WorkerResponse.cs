@@ -1,8 +1,7 @@
 using System;
-using System.Diagnostics;
 using System.Text;
 
-namespace BrokerCommon
+namespace OnPoolCommon
 {
     internal class WorkerResponse
     {
@@ -47,4 +46,10 @@ namespace BrokerCommon
 
         }
     }
+    internal enum WorkerResult
+    {
+        Message,
+        Disconnect
+    }
+
 }

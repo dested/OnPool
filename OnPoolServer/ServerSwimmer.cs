@@ -1,7 +1,6 @@
-﻿using System;
-using BrokerCommon;
+﻿using OnPoolCommon;
 
-namespace BrokerServer
+namespace OnPoolServer
 {
     public class ServerSwimmer
     {

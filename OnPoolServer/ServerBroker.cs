@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BrokerCommon;
-using BrokerCommon.Models;
+using OnPoolCommon;
+using OnPoolCommon.Models;
 
-namespace BrokerServer
+namespace OnPoolServer
 {
     public class ServerBroker  
     {

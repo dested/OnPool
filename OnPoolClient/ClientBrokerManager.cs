@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BrokerCommon;
-using BrokerCommon.Models;
+using OnPoolCommon;
+using OnPoolCommon.Models;
 
-namespace BrokerClient
+namespace OnPoolClient
 {
     public delegate void OnMessage(ClientSwimmer from, Query message);
     public delegate void OnMessageWithResponse(ClientSwimmer from, Query message, Action<Query> respond);
