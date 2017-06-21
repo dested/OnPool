@@ -19,7 +19,7 @@ namespace OnPoolClient
     {
         private List<OnPoolClient> clients = new List<OnPoolClient>();
 
-        public void TestSwimmerResponse(LocalThreadManager threadManager)
+        public void TestClientResponse(LocalThreadManager threadManager)
         {
             BuildClientManager(manager1 =>
             {
@@ -57,10 +57,10 @@ namespace OnPoolClient
                                                     {
                                                         pool3.JoinPool(() =>
                                                         {
-                                                            pool.GetSwimmers(swimmers =>
+                                                            pool.GetClients(clients =>
                                                             {
                                                                 var count = 0;
-                                                                swimmers[0].SendMessageWithResponse(
+                                                                clients[0].SendMessageWithResponse(
                                                                     Query.Build("Baz", 12), q =>
                                                                     {
                                                                         count++;
@@ -69,7 +69,7 @@ namespace OnPoolClient
                                                                             threadManager.Kill();
                                                                     });
 
-                                                                swimmers[1].SendMessageWithResponse(
+                                                                clients[1].SendMessageWithResponse(
                                                                     Query.Build("Baz", 13), q =>
                                                                     {
                                                                         count++;
@@ -172,7 +172,7 @@ namespace OnPoolClient
             });
         }
 
-        public void TestDirectSwimmerResponse(LocalThreadManager threadManager)
+        public void TestDirectClientResponse(LocalThreadManager threadManager)
         {
             BuildClientManager(manager1 =>
             {
@@ -194,9 +194,9 @@ namespace OnPoolClient
                                 {
                                     manager2.GetPool("TestPool", pool2 =>
                                     {
-                                        pool1.GetSwimmers(swimmers =>
+                                        pool1.GetClients(clients =>
                                         {
-                                            var swim = swimmers.First();
+                                            var swim = clients.First();
                                             manager2.SendMessageWithResponse(swim.Id, Query.Build("Hi", 12), q =>
                                             {
                                                 Assert.AreEqual(q.GetJson<int>(), 20);

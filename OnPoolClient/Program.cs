@@ -45,12 +45,14 @@ namespace OnPoolClient
             {
                 var tc = new Tests();
 
-                var tests = new List<Action<LocalThreadManager>>();
-//                tests.Add(tc.TestSwimmerResponse);
-//                tests.Add(tc.TestPoolResponse);
-//                tests.Add(tc.TestDirectSwimmerResponse);
-//                tests.Add(tc.TestAllPoolResponse);
-                tests.Add(tc.TestSlammer);
+                var tests = new List<Action<LocalThreadManager>>
+                {
+                    tc.TestClientResponse,
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
+                    tc.TestAllPoolResponse,
+                    tc.TestSlammer
+                };
 
 
                 while (true)

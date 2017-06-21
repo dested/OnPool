@@ -1,7 +1,7 @@
 namespace OnPoolCommon.Models
 {
-    public class GetSwimmerByPoolResponse
+    public class GetClientByPoolResponse
     {
-        public SwimmerResponse[] Swimmers { get; set; }
+        public ClientResponse[] Clients { get; set; }
     }
 }

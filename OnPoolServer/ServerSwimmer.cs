@@ -2,12 +2,12 @@
 
 namespace OnPoolServer
 {
-    public class ServerSwimmer
+    public class Client
     {
-        public ServerSwimmer(SocketManager socketManager, string swimmerId)
+        public Client(SocketManager socketManager, string clientId)
         {
             SocketManager = socketManager;
-            Id = swimmerId;
+            Id = clientId;
         }
 
         public SocketManager SocketManager { get; }

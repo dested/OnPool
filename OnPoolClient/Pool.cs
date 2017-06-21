@@ -7,33 +7,24 @@ namespace OnPoolClient
 {
     public class Pool
     {
-        private readonly Func<string, Swimmer> getSwimmer;
+        private readonly Func<string, Client> getClient;
         private readonly OnPoolClient client;
 
-        public Pool(OnPoolClient client, string poolName, Func<string, Swimmer> getSwimmer)
+        public Pool(OnPoolClient client, string poolName, Func<string, Client> getClient)
         {
             this.client = client;
-            this.getSwimmer = getSwimmer;
+            this.getClient = getClient;
             PoolName = poolName;
         }
 
         public string PoolName { get; set; }
-        private OnMessage onMessage { get; set; }
         private OnMessageWithResponse onMessageWithResponse { get; set; }
 
 
-        public void ReceiveMessage(Swimmer from, Query query)
-        {
-            onMessage?.Invoke(@from, query);
-        }
-        public void ReceiveMessageWithResponse(Swimmer from, Query query, Action<Query> respond)
+      
+        public void ReceiveMessageWithResponse(Client from, Query query, Action<Query> respond)
         {
             onMessageWithResponse?.Invoke(from, query, respond);
-        }
-
-        public void OnMessage(OnMessage callback)
-        {
-            onMessage += callback;
         }
 
         public void OnMessageWithResponse(OnMessageWithResponse callback)
@@ -41,16 +32,16 @@ namespace OnPoolClient
             onMessageWithResponse += callback;
         }
 
-        public void GetSwimmers(Action<Swimmer[]> callback)
+        public void GetClients(Action<Client[]> callback)
         {
-            var query = Query.Build("GetSwimmers", new QueryParam("PoolName", PoolName));
+            var query = Query.Build("GetClients", new QueryParam("PoolName", PoolName));
 
             client.sendMessageWithResponse(query, response =>
             {
                 callback(
-                    response.GetJson<GetSwimmerByPoolResponse>()
-                        .Swimmers
-                        .Select(a => getSwimmer(a.Id))
+                    response.GetJson<GetClientByPoolResponse>()
+                        .Clients
+                        .Select(a => getClient(a.Id))
                         .ToArray()
                 );
             });
@@ -62,18 +53,6 @@ namespace OnPoolClient
                 Query.Build("JoinPool", new QueryParam("PoolName", PoolName)),
                 response => { callback(); }
             );
-        }
-
-        public void SendMessage(Query query)
-        {
-            query.Add("~ToPool~", PoolName);
-            client.sendMessage(query);
-        }
-
-        public void SendAllMessage(Query query)
-        {
-            query.Add("~ToPoolAll~", PoolName);
-            client.sendMessage(query);
         }
 
         public void SendMessageWithResponse(Query query, Action<Query> callback)
@@ -89,28 +68,21 @@ namespace OnPoolClient
         }
     }
 
-    public class Swimmer
+    public class Client
     {
         private readonly OnPoolClient client;
 
-        public Swimmer(OnPoolClient client, string swimmerId)
+        public Client(OnPoolClient client, string clientId)
         {
             this.client = client;
-            Id = swimmerId;
+            Id = clientId;
         }
 
         public string Id { get; set; }
 
-
-        public void SendMessage(Query query)
-        {
-            query.Add("~ToSwimmer~", Id);
-            client.sendMessage(query);
-        }
-
         public void SendMessageWithResponse(Query query, Action<Query> callback)
         {
-            query.Add("~ToSwimmer~", Id);
+            query.Add("~ToClient~", Id);
             client.sendMessageWithResponse(query, callback);
         }
     }

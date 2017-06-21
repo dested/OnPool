@@ -6,36 +6,38 @@ using OnPoolCommon.Models;
 
 namespace OnPoolServer
 {
-    public class OnPoolManager
+    public class OnPoolServer
     {
-        private readonly List<ServerPool> pools = new List<ServerPool>();
+        private readonly List<Pool> pools = new List<Pool>();
         private readonly ClientListener serverManager;
-        public readonly List<ServerSwimmer> _swimmers = new List<ServerSwimmer>();
+        public readonly List<Client> Clients = new List<Client>();
 
 
         private readonly Dictionary<string, Action<Query>> messageResponses = new Dictionary<string, Action<Query>>();
         private readonly Dictionary<string, int> poolAllCounter = new Dictionary<string, int>();
 
-        public OnPoolManager()
+        public OnPoolServer()
         {
+            var threadManager = LocalThreadManager.Start();
             serverManager = new ClientListener(socket =>
                 {
                     var socketManager = new SocketManager(socket, onMessage);
-                    socketManager.OnDisconnect += RemoveSwimmer;
-                    AddSwimmer(socketManager);
+                    socketManager.OnDisconnect += RemoveClient;
+                    AddClient(socketManager);
                     socketManager.Start();
                 }
             );
             serverManager.StartServer();
+            threadManager.Process();
         }
 
         private void onMessage(SocketManager socketManager, Query query)
         {
-            ServerSwimmer fromSwimmer;
-            if (query.Contains("~FromSwimmer~"))
-                fromSwimmer = GetSwimmer(query["~FromSwimmer~"]);
+            Client fromClient;
+            if (query.Contains("~FromClient~"))
+                fromClient = GetClient(query["~FromClient~"]);
             else
-                fromSwimmer = GetSwimmer(socketManager.Id);
+                fromClient = GetClient(socketManager.Id);
 
 
             if (query.Contains("~Response~"))
@@ -75,63 +77,40 @@ namespace OnPoolServer
             {
                 var receiptId = query["~ResponseKey~"];
                 query.Remove("~ResponseKey~");
-                ClientMessageWithResponse(fromSwimmer, query, queryResponse =>
+                ClientMessageWithResponse(fromClient, query, queryResponse =>
                     {
                         queryResponse.Add("~Response~");
                         queryResponse.Add("~ResponseKey~", receiptId);
-                        sendMessage(socketManager, queryResponse);
+                        SendMessageWithResponse(socketManager, queryResponse,null);
                     }
                 );
             }
             else
             {
-                ClientMessage(fromSwimmer, query);
+                throw new Exception("Idk");
             }
-        }
-
-        public bool sendMessage(SocketManager socketManager, Query query)
-        {
-            if (!query.Contains("~FromSwimmer~"))
-                query["~FromSwimmer~"] = socketManager.Id;
-            return socketManager.SendMessage(query);
         }
 
         public bool SendMessageWithResponse(SocketManager socketManager, Query message, Action<Query> callback)
         {
-            var responseKey = Guid.NewGuid().ToString("N");
-            message.Add("~ResponseKey~", responseKey);
-            messageResponses[responseKey] = callback;
+            if (!message.Contains("~Response~"))
+            {
+                var responseKey = Guid.NewGuid().ToString("N");
+                message.Add("~ResponseKey~", responseKey);
+                messageResponses[responseKey] = callback;
+            }
 
-            return sendMessage(socketManager, message);
+            if (!message.Contains("~FromClient~"))
+                message["~FromClient~"] = socketManager.Id;
+            return socketManager.SendMessage(message);
+
         }
 
-
-        private void ClientMessage(ServerSwimmer swimmer, Query query)
+        private void ClientMessageWithResponse(Client client, Query query, Action<Query> respond)
         {
-            if (query.Contains("~ToSwimmer~"))
+            if (query.Contains("~ToClient~"))
             {
-                ForwardMessageToSwimmer(query);
-                return;
-            }
-            if (query.Contains("~ToPool~"))
-            {
-                ForwardMessageToPool(query);
-                return;
-            }
-            if (query.Contains("~ToPoolAll~"))
-            {
-                ForwardMessageToPoolAll(query);
-                return;
-            }
-
-            throw new Exception("Method not found: " + query.Method);
-        }
-
-        private void ClientMessageWithResponse(ServerSwimmer swimmer, Query query, Action<Query> respond)
-        {
-            if (query.Contains("~ToSwimmer~"))
-            {
-                ForwardMessageToSwimmerWithResponse(query, respond);
+                ForwardMessageToClientWithResponse(query, respond);
                 return;
             }
             if (query.Contains("~ToPool~"))
@@ -148,9 +127,9 @@ namespace OnPoolServer
 
             switch (query.Method)
             {
-                case "GetSwimmerId":
+                case "GetClientId":
                 {
-                    respond(Query.Build(query.Method, swimmer.Id));
+                    respond(Query.Build(query.Method, client.Id));
                     break;
                 }
                 case "GetAllPools":
@@ -169,14 +148,14 @@ namespace OnPoolServer
 
                 case "JoinPool":
                 {
-                    JoinPool(swimmer, query["PoolName"]);
+                    JoinPool(client, query["PoolName"]);
                     respond(Query.Build(query.Method));
                     break;
                 }
 
-                case "GetSwimmers":
+                case "GetClients":
                 {
-                    var response = GetSwimmersInPool(query["PoolName"]);
+                    var response = GetClientsInPool(query["PoolName"]);
                     respond(Query.Build(query.Method, response));
                     break;
                 }
@@ -184,28 +163,28 @@ namespace OnPoolServer
             }
         }
 
-        public void AddSwimmer(SocketManager socketManager)
+        public void AddClient(SocketManager socketManager)
         {
-            var swimmer = new ServerSwimmer(socketManager, socketManager.Id);
-            _swimmers.Add(swimmer);
+            var client = new Client(socketManager, socketManager.Id);
+            Clients.Add(client);
         }
 
-        public ServerSwimmer GetSwimmer(string id)
+        public Client GetClient(string id)
         {
-            return _swimmers.FirstOrDefault(a => a.Id == id);
+            return Clients.FirstOrDefault(a => a.Id == id);
         }
 
-        public void RemoveSwimmer(SocketManager socketManager)
+        public void RemoveClient(SocketManager socketManager)
         {
-            var swimmer = _swimmers.First(a => a.Id == socketManager.Id);
-            _swimmers.Remove(swimmer);
+            var client = Clients.First(a => a.Id == socketManager.Id);
+            Clients.Remove(client);
             for (var index = pools.Count - 1; index >= 0; index--)
             {
                 var serverPool = pools[index];
-                if (serverPool.Swimmers.Contains(swimmer))
+                if (serverPool.Clients.Contains(client))
                 {
-                    serverPool.Swimmers.Remove(swimmer);
-                    if (serverPool.Swimmers.Count == 0)
+                    serverPool.Clients.Remove(client);
+                    if (serverPool.Clients.Count == 0)
                         pools.Remove(serverPool);
                 }
             }
@@ -229,90 +208,66 @@ namespace OnPoolServer
             };
         }
 
-        private ServerPool getPoolByName(string poolName)
+        private Pool getPoolByName(string poolName)
         {
             var pool = pools.FirstOrDefault(a => a.Name == poolName);
 
             if (pool == null)
-                pools.Add(pool = new ServerPool
+                pools.Add(pool = new Pool
                 {
-                    Swimmers = new List<ServerSwimmer>(),
+                    Clients = new List<Client>(),
                     Name = poolName
                 });
             return pool;
         }
 
-        public void JoinPool(ServerSwimmer client, string poolName)
+        public void JoinPool(Client client, string poolName)
         {
             var pool = getPoolByName(poolName);
-            if (pool.Swimmers.Contains(client)) return;
+            if (pool.Clients.Contains(client)) return;
 
-            pool.Swimmers.Add(client);
+            pool.Clients.Add(client);
         }
 
-        public GetSwimmerByPoolResponse GetSwimmersInPool(string poolName)
+        public GetClientByPoolResponse GetClientsInPool(string poolName)
         {
             var pool = getPoolByName(poolName);
-            return new GetSwimmerByPoolResponse
+            return new GetClientByPoolResponse
             {
-                Swimmers = pool.Swimmers.Select(a => new SwimmerResponse {Id = a.Id}).ToArray()
+                Clients = pool.Clients.Select(a => new ClientResponse {Id = a.Id}).ToArray()
             };
         }
 
-        public void ForwardMessageToSwimmerWithResponse(Query query, Action<Query> respond)
+        public void ForwardMessageToClientWithResponse(Query query, Action<Query> respond)
         {
-            var swimmer = _swimmers.FirstOrDefault(a => a.Id == query["~ToSwimmer~"]);
-            SendMessageWithResponse(swimmer?.SocketManager, query, respond);
+            var client = Clients.FirstOrDefault(a => a.Id == query["~ToClient~"]);
+            SendMessageWithResponse(client?.SocketManager, query, respond);
         }
 
         public void ForwardMessageToPoolWithResponse(Query query, Action<Query> respond)
         {
             var poolName = query["~ToPool~"];
             var pool = getPoolByName(poolName);
-            var swimmer = pool.GetRoundRobin();
+            var client = pool.GetRoundRobin();
             var rQuery = new Query(query);
-            SendMessageWithResponse(swimmer?.SocketManager, rQuery, respond);
+            SendMessageWithResponse(client?.SocketManager, rQuery, respond);
         }
 
         public void ForwardMessageToPoolAllWithResponse(Query query, Action<Query> respond)
         {
             var poolName = query["~ToPoolAll~"];
             var pool = getPoolByName(poolName);
-            var swimmers = pool.Swimmers.ToArray();
-            for (var index = 0; index < swimmers.Length; index++)
+            var clients = pool.Clients.ToArray();
+            for (var index = 0; index < clients.Length; index++)
             {
-                var swimmer = swimmers[index];
+                var client = clients[index];
                 var rQuery = new Query(query);
-                rQuery.Add("~PoolAllCount~", swimmers.Length.ToString());
-                SendMessageWithResponse(swimmer?.SocketManager, rQuery, respond);
+                rQuery.Add("~PoolAllCount~", clients.Length.ToString());
+                SendMessageWithResponse(client?.SocketManager, rQuery, respond);
             }
         }
 
-        public void ForwardMessageToSwimmer(Query query)
-        {
-            var swimmer = _swimmers.FirstOrDefault(a => a.Id == query["~ToSwimmer~"]);
-            sendMessage(swimmer?.SocketManager, query);
-        }
-
-        public void ForwardMessageToPool(Query query)
-        {
-            var poolName = query["~ToPool~"];
-            var pool = getPoolByName(poolName);
-            var swimmer = pool.GetRoundRobin();
-            var rQuery = new Query(query);
-            sendMessage(swimmer?.SocketManager, rQuery);
-        }
-
-        public void ForwardMessageToPoolAll(Query query)
-        {
-            var poolName = query["~ToPoolAll~"];
-            var pool = getPoolByName(poolName);
-            foreach (var swimmer in pool.Swimmers)
-            {
-                var rQuery = new Query(query);
-                sendMessage(swimmer?.SocketManager, rQuery);
-            }
-        }
+     
 
         public void Disconnect()
         {

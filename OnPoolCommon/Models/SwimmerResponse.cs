@@ -1,6 +1,6 @@
 namespace OnPoolCommon.Models
 {
-    public class SwimmerResponse
+    public class ClientResponse
     {
         public string Id { get; set; }
     }
