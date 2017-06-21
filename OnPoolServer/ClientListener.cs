@@ -25,7 +25,7 @@ namespace OnPoolServer
             Console.WriteLine("Listening on " + port);
             var connectionListenerThread = new LocalBackgroundWorker<Socket, Socket>();
             connectionListenerThread.DoWork += Thread_AwaitConnection;
-            connectionListenerThread.ReportResponse += client => newConnection(client);
+            connectionListenerThread.ReportResponse += socketManager => newConnection(socketManager);
             connectionListenerThread.Run(server);
         }
 

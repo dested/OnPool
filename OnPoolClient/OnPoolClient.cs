@@ -18,7 +18,7 @@ namespace OnPoolClient
         private readonly List<Pool> pools = new List<Pool>();
 
         private Action onReady;
-        private SocketLayer server;
+        private SocketManager server;
         private readonly List<Swimmer> swimmers = new List<Swimmer>();
         private Action onDisconnect;
         private OnMessage onMessage;
@@ -29,7 +29,7 @@ namespace OnPoolClient
 
         public void ConnectToServer(string ip)
         {
-            server = new SocketLayer("127.0.0.1", (_, query) => messageProcess(query));
+            server = new SocketManager("127.0.0.1", (_, query) => messageProcess(query));
             server.OnDisconnect += _ => onDisconnect?.Invoke();
             server.StartFromClient();
             GetSwimmerId(id =>

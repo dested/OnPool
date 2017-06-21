@@ -4,13 +4,13 @@ namespace OnPoolServer
 {
     public class ServerSwimmer
     {
-        public ServerSwimmer(SocketLayer socket, string swimmerId)
+        public ServerSwimmer(SocketManager socketManager, string swimmerId)
         {
-            Socket = socket;
+            SocketManager = socketManager;
             Id = swimmerId;
         }
 
-        public SocketLayer Socket { get; }
+        public SocketManager SocketManager { get; }
         public string Id { get; set; }
     }
 }

@@ -15,8 +15,8 @@ namespace OnPoolServer
                 while (true)
                 {
                     Thread.Sleep(1000);
-                    Console.WriteLine(SocketLayer.Counter);
-                    SocketLayer.Counter = 0;
+                    Console.WriteLine(SocketManager.Counter);
+                    SocketManager.Counter = 0;
                 }
             });
             var broker = new OnPoolManager();

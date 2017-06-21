@@ -5,17 +5,17 @@ using System.Net.Sockets;
 
 namespace OnPoolCommon
 {
-    public class SocketLayer
+    public class SocketManager
     {
         public static int Counter;
-        private readonly Action<SocketLayer, Query> onReceive;
+        private readonly Action<SocketManager, Query> onReceive;
 
         private LocalBackgroundWorker<object, WorkerResponse> awaitMessagesWorker;
         private bool disconnected;
         private readonly string serverIp;
         private Socket socket;
 
-        public SocketLayer(Socket socket, Action<SocketLayer, Query> onReceive)
+        public SocketManager(Socket socket, Action<SocketManager, Query> onReceive)
         {
             this.socket = socket;
             this.onReceive = onReceive;
@@ -24,7 +24,7 @@ namespace OnPoolCommon
         }
 
 
-        public SocketLayer(string serverIp, Action<SocketLayer, Query> onReceive)
+        public SocketManager(string serverIp, Action<SocketManager, Query> onReceive)
         {
             this.serverIp = serverIp;
             this.onReceive = onReceive;
@@ -32,7 +32,7 @@ namespace OnPoolCommon
 
         public string Id { get; set; }
 
-        public Action<SocketLayer> OnDisconnect { get; set; }
+        public Action<SocketManager> OnDisconnect { get; set; }
 
 
         public void StartFromClient()

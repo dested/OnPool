@@ -20,22 +20,22 @@ namespace OnPoolServer
         {
             serverManager = new ClientListener(socket =>
                 {
-                    var client = new SocketLayer(socket, onMessage);
-                    client.OnDisconnect += RemoveSwimmer;
-                    AddSwimmer(client);
-                    client.Start();
+                    var socketManager = new SocketManager(socket, onMessage);
+                    socketManager.OnDisconnect += RemoveSwimmer;
+                    AddSwimmer(socketManager);
+                    socketManager.Start();
                 }
             );
             serverManager.StartServer();
         }
 
-        private void onMessage(SocketLayer socket, Query query)
+        private void onMessage(SocketManager socketManager, Query query)
         {
             ServerSwimmer fromSwimmer;
             if (query.Contains("~FromSwimmer~"))
                 fromSwimmer = GetSwimmer(query["~FromSwimmer~"]);
             else
-                fromSwimmer = GetSwimmer(socket.Id);
+                fromSwimmer = GetSwimmer(socketManager.Id);
 
 
             if (query.Contains("~Response~"))
@@ -79,7 +79,7 @@ namespace OnPoolServer
                     {
                         queryResponse.Add("~Response~");
                         queryResponse.Add("~ResponseKey~", receiptId);
-                        sendMessage(socket, queryResponse);
+                        sendMessage(socketManager, queryResponse);
                     }
                 );
             }
@@ -89,20 +89,20 @@ namespace OnPoolServer
             }
         }
 
-        public bool sendMessage(SocketLayer socket, Query query)
+        public bool sendMessage(SocketManager socketManager, Query query)
         {
             if (!query.Contains("~FromSwimmer~"))
-                query["~FromSwimmer~"] = socket.Id;
-            return socket.SendMessage(query);
+                query["~FromSwimmer~"] = socketManager.Id;
+            return socketManager.SendMessage(query);
         }
 
-        public bool SendMessageWithResponse(SocketLayer socket, Query message, Action<Query> callback)
+        public bool SendMessageWithResponse(SocketManager socketManager, Query message, Action<Query> callback)
         {
             var responseKey = Guid.NewGuid().ToString("N");
             message.Add("~ResponseKey~", responseKey);
             messageResponses[responseKey] = callback;
 
-            return sendMessage(socket, message);
+            return sendMessage(socketManager, message);
         }
 
 
@@ -184,9 +184,9 @@ namespace OnPoolServer
             }
         }
 
-        public void AddSwimmer(SocketLayer client)
+        public void AddSwimmer(SocketManager socketManager)
         {
-            var swimmer = new ServerSwimmer(client, client.Id);
+            var swimmer = new ServerSwimmer(socketManager, socketManager.Id);
             _swimmers.Add(swimmer);
         }
 
@@ -195,9 +195,9 @@ namespace OnPoolServer
             return _swimmers.FirstOrDefault(a => a.Id == id);
         }
 
-        public void RemoveSwimmer(SocketLayer client)
+        public void RemoveSwimmer(SocketManager socketManager)
         {
-            var swimmer = _swimmers.First(a => a.Id == client.Id);
+            var swimmer = _swimmers.First(a => a.Id == socketManager.Id);
             _swimmers.Remove(swimmer);
             for (var index = pools.Count - 1; index >= 0; index--)
             {
@@ -262,7 +262,7 @@ namespace OnPoolServer
         public void ForwardMessageToSwimmerWithResponse(Query query, Action<Query> respond)
         {
             var swimmer = _swimmers.FirstOrDefault(a => a.Id == query["~ToSwimmer~"]);
-            SendMessageWithResponse(swimmer?.Socket, query, respond);
+            SendMessageWithResponse(swimmer?.SocketManager, query, respond);
         }
 
         public void ForwardMessageToPoolWithResponse(Query query, Action<Query> respond)
@@ -271,7 +271,7 @@ namespace OnPoolServer
             var pool = getPoolByName(poolName);
             var swimmer = pool.GetRoundRobin();
             var rQuery = new Query(query);
-            SendMessageWithResponse(swimmer?.Socket, rQuery, respond);
+            SendMessageWithResponse(swimmer?.SocketManager, rQuery, respond);
         }
 
         public void ForwardMessageToPoolAllWithResponse(Query query, Action<Query> respond)
@@ -284,14 +284,14 @@ namespace OnPoolServer
                 var swimmer = swimmers[index];
                 var rQuery = new Query(query);
                 rQuery.Add("~PoolAllCount~", swimmers.Length.ToString());
-                SendMessageWithResponse(swimmer?.Socket, rQuery, respond);
+                SendMessageWithResponse(swimmer?.SocketManager, rQuery, respond);
             }
         }
 
         public void ForwardMessageToSwimmer(Query query)
         {
             var swimmer = _swimmers.FirstOrDefault(a => a.Id == query["~ToSwimmer~"]);
-            sendMessage(swimmer?.Socket, query);
+            sendMessage(swimmer?.SocketManager, query);
         }
 
         public void ForwardMessageToPool(Query query)
@@ -300,7 +300,7 @@ namespace OnPoolServer
             var pool = getPoolByName(poolName);
             var swimmer = pool.GetRoundRobin();
             var rQuery = new Query(query);
-            sendMessage(swimmer?.Socket, rQuery);
+            sendMessage(swimmer?.SocketManager, rQuery);
         }
 
         public void ForwardMessageToPoolAll(Query query)
@@ -310,7 +310,7 @@ namespace OnPoolServer
             foreach (var swimmer in pool.Swimmers)
             {
                 var rQuery = new Query(query);
-                sendMessage(swimmer?.Socket, rQuery);
+                sendMessage(swimmer?.SocketManager, rQuery);
             }
         }
 
