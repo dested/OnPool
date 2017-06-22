@@ -54,7 +54,7 @@ namespace OnPoolClient
 
                             q.To = fromClient.Id;
                             q.RequestKey = receiptId;
-                            sendMessage(q, null);
+                            server.SendMessage(q);
                         }
                     );
                     break;

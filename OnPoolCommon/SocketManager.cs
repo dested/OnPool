@@ -47,8 +47,8 @@ namespace OnPoolCommon
 
         public void Start()
         {
-            socket.ReceiveTimeout = 2000;
-            socket.SendTimeout = 2000;
+            socket.ReceiveTimeout = 30000;
+            socket.SendTimeout = 30000;
             socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, 0);
             awaitMessagesWorker = new LocalBackgroundWorker<object, WorkerResponse>();
             awaitMessagesWorker.DoWork += (worker, _) => Thread_MonitorStream(worker);
@@ -64,7 +64,7 @@ namespace OnPoolCommon
                 switch (response.Result)
                 {
                     case WorkerResult.Message:
-                        Console.WriteLine(response.Query);
+//                        Console.WriteLine(response.Query);
                         onReceive(this, response.Query);
                         break;
                     case WorkerResult.Disconnect:
@@ -93,7 +93,7 @@ namespace OnPoolCommon
 
         public bool SendMessage(Query message)
         {
-                        Console.WriteLine("Send "+message);
+//                        Console.WriteLine("Send "+message);
             if (!socket.Connected)
             {
                 Disconnect();
@@ -138,7 +138,7 @@ namespace OnPoolCommon
             {
                 int i;
                 var bytes = new byte[256];
-                byte[] continueBuffer = null;
+                List<byte> continueBuffer = null;
                 top:
                 while ((i = socket.Receive(bytes)) != 0)
                 {
@@ -148,7 +148,7 @@ namespace OnPoolCommon
                         var b = bytes[j];
                         if (b == 0)
                         {
-                            var response = WorkerResponse.FromQuery(continueBuffer, bytes, lastZero, j - lastZero);
+                            var response = WorkerResponse.FromQuery(continueBuffer?.ToArray(), bytes, lastZero, j - lastZero);
                             lastZero = j + 1;
                             if (response != null)
                                 worker.SendResponse(response);
@@ -157,8 +157,10 @@ namespace OnPoolCommon
                     }
                     if (lastZero != i)
                     {
-                        continueBuffer = new byte[i - lastZero];
-                        Array.ConstrainedCopy(bytes, lastZero, continueBuffer, 0, i - lastZero);
+                        var m = new byte[i - lastZero];
+                        Array.ConstrainedCopy(bytes, lastZero, m, 0, i - lastZero);
+                        if(continueBuffer==null) continueBuffer=new List<byte>();
+                        continueBuffer.AddRange(m);
                     }
                 }
                 if (Thread_IsConnected())

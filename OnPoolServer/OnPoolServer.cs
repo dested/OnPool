@@ -43,11 +43,10 @@ namespace OnPoolServer
                     var receiptId = message.RequestKey;
                     ClientMessage(fromClient, message, queryResponse =>
                         {
-                            var q = Query.Build(message.Method, QueryDirection.Response, message.Type);
+                            var q = Query.Build(queryResponse.Method, QueryDirection.Response, queryResponse.Type);
                             q.Add(queryResponse);
                             q.RequestKey = receiptId;
-
-                            SendMessage(socketManager, q, null);
+                            socketManager.SendMessage(q);
                         }
                     );
 
@@ -79,7 +78,8 @@ namespace OnPoolServer
                     }
                     else
                     {
-                        throw new Exception("Cannot find response callback");
+                        Console.WriteLine(string.Join(",", messageResponses.Keys.ToArray()));
+                        throw new Exception("Cannot find response callback  " + message);
                     }
 
                     break;
@@ -109,6 +109,7 @@ namespace OnPoolServer
             }
 
             var responseKey = message.RequestKey;
+            Console.WriteLine("Forwading " + responseKey);
             messageResponses[responseKey] = callback;
 
             if (message.From == null)
@@ -256,6 +257,7 @@ namespace OnPoolServer
             var rQuery = new Query(query);
             if (client == null)
             {
+                Console.WriteLine("No round robin found " + query);
                 //todo idk, maybe tell the caller theres no round robin
                 return;
             }
