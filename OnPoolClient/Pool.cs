@@ -22,7 +22,7 @@ namespace OnPoolClient
 
 
       
-        public void ReceiveMessageWithResponse(Client from, Query query, Action<Query> respond)
+        public void ReceiveMessageWithResponse(Client from, Query query, RespondMessage respond)
         {
             onMessageWithResponse?.Invoke(from, query, respond);
         }

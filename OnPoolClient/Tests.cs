@@ -27,7 +27,7 @@ namespace OnPoolClient
                 {
                     Assert.AreEqual(message.Method, "Baz");
                     Assert.AreEqual(message.GetJson<int>(), 12);
-                    respond(message.Respond("foo1"));
+                    respond(QueryParam.Json("foo1"));
                 });
                 manager1.OnReady(() =>
                 {
@@ -41,7 +41,7 @@ namespace OnPoolClient
                                 {
                                     Assert.AreEqual(message.Method, "Baz");
                                     Assert.AreEqual(message.GetJson<int>(), 13);
-                                    respond(message.Respond("foo2"));
+                                    respond(QueryParam.Json("foo2"));
                                 });
                                 manager2.OnReady(() =>
                                 {
@@ -108,12 +108,12 @@ namespace OnPoolClient
                             {
                                 poolHit++;
                                 Assert.AreEqual(message.GetJson<int>(), 12);
-                                respond(message.Respond(13));
+                                respond(QueryParam.Json(13));
                             }
                             else
                             {
                                 Assert.AreEqual(message.GetJson<int>(), 14);
-                                respond(message.Respond(15));
+                                respond(QueryParam.Json(15));
                             }
                         });
 
@@ -131,7 +131,7 @@ namespace OnPoolClient
                                             {
                                                 Assert.AreEqual(message.Method, "Bar");
                                                 Assert.AreEqual(message.GetJson<int>(), 13);
-                                                respond(message.Respond(14));
+                                                respond(QueryParam.Json(14));
                                             });
 
                                             BuildClientManager(manager3 =>
@@ -182,7 +182,7 @@ namespace OnPoolClient
                     {
                         Assert.AreEqual(message.Method, "Hi");
                         Assert.AreEqual(message.GetJson<int>(), 12);
-                        respond(message.Respond(20));
+                        respond(QueryParam.Json(20));
                     });
                     manager1.GetPool("TestPool", pool1 =>
                     {
@@ -224,7 +224,7 @@ namespace OnPoolClient
                         {
                             Assert.AreEqual(message.Method, "Bar");
                             Assert.AreEqual(message.GetJson<int>(), 13);
-                            respond(message.Respond(14));
+                            respond(QueryParam.Json(14));
                         });
 
                         pool1.JoinPool(() =>
@@ -241,7 +241,7 @@ namespace OnPoolClient
                                             {
                                                 Assert.AreEqual(message.Method, "Bar");
                                                 Assert.AreEqual(message.GetJson<int>(), 13);
-                                                respond(message.Respond(14));
+                                                respond(QueryParam.Json(14));
                                             });
 
                                             BuildClientManager(manager3 =>
@@ -283,7 +283,7 @@ namespace OnPoolClient
                             {
                                 Assert.AreEqual(message.Method, "Bar");
                                 Assert.AreEqual(message.GetJson<int>(), 13);
-                                respond(message.Respond(14));
+                                respond(QueryParam.Json(14));
                             });
 
                             pool1.JoinPool(() => { });
@@ -323,7 +323,7 @@ namespace OnPoolClient
                             {
                                 Assert.AreEqual(message.Method, "Bar");
                                 Assert.AreEqual(message.GetJson<int>(), 13);
-                                respond(message.Respond(14));
+                                respond(QueryParam.Json(14));
                             });
 
                             pool1.JoinPool(() => { });

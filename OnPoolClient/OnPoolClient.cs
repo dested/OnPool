@@ -6,7 +6,8 @@ using OnPoolCommon.Models;
 
 namespace OnPoolClient
 {
-    public delegate void OnMessageWithResponse(Client from, Query message, Action<Query> respond);
+    public delegate void RespondMessage(params QueryParam[] @params);
+    public delegate void OnMessageWithResponse(Client from, Query message, RespondMessage respond);
 
 
     public class OnPoolClient
@@ -83,9 +84,10 @@ namespace OnPoolClient
                 query.Remove("~ResponseKey~");
                 onReceiveMessageWithResponse(fromClient, query, queryResponse =>
                     {
-                        queryResponse.Add("~Response~");
-                        queryResponse.Add("~ResponseKey~", receiptId);
-                        sendMessageWithResponse(queryResponse, null);
+                        var q = Query.Build(query.Method, queryResponse);
+                        q.Add("~Response~");
+                        q.Add("~ResponseKey~", receiptId);
+                        sendMessageWithResponse(q, null);
                     }
                 );
             }
@@ -122,7 +124,7 @@ namespace OnPoolClient
             onMessageWithResponse += callback;
         }
 
-        private void onReceiveMessageWithResponse(Client from, Query query, Action<Query> respond)
+        private void onReceiveMessageWithResponse(Client from, Query query, RespondMessage respond)
         {
             if (query.Contains("~ToClient~"))
             {
@@ -140,8 +142,9 @@ namespace OnPoolClient
                 var pool = pools.FirstOrDefault(a => a.PoolName == query["~ToPoolAll~"]);
                 pool?.ReceiveMessageWithResponse(from, query, res =>
                 {
-                    res.Add("~PoolAllCount~", query["~PoolAllCount~"]);
-                    respond(res);
+                    var ql = res.ToList();
+                    ql.Add(new QueryParam("~PoolAllCount~", query["~PoolAllCount~"]));
+                    respond(ql.ToArray());
                 });
             }
         }
@@ -169,10 +172,6 @@ namespace OnPoolClient
                 var responseKey = Guid.NewGuid().ToString("N");
                 query.Add("~ResponseKey~", responseKey);
                 messageResponses[responseKey] = callback;
-            }
-            else
-            {
-                
             }
 
             if (server.Id != null && !query.Contains("~FromClient~"))

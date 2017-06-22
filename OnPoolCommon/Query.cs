@@ -106,18 +106,6 @@ namespace OnPoolCommon
             }
         }
 
-        public Query Respond(params QueryParam[] queryParams)
-        {
-            return new Query(Method, queryParams);
-        }
-
-        public Query Respond<T>(T json, params QueryParam[] queryParams)
-        {
-            var qp = new List<QueryParam> {new QueryParam("Json", json.ToJson())};
-            qp.AddRange(queryParams);
-            return new Query(Method, qp.ToArray());
-        }
-
 
         public T GetJson<T>()
         {
@@ -138,5 +126,10 @@ namespace OnPoolCommon
 
         public string Key { get; set; }
         public string Value { get; set; }
+
+        public static QueryParam Json<T>(T t)
+        {
+            return new QueryParam("Json",t.ToJson());
+        }
     }
 }
