@@ -33,8 +33,6 @@ namespace OnPoolServer
 
         private void onMessage(SocketManager socketManager, Query message)
         {
-            //            Console.WriteLine("Get " + message);
-
             Client fromClient = GetClient(socketManager.Id);
 
 
@@ -76,7 +74,8 @@ namespace OnPoolServer
                         {
                             messageResponses.Remove(message.RequestKey);
                         }
-                        callback(message);
+                        if (callback != null)
+                            callback(message);
                     }
                     else
                     {
@@ -93,12 +92,9 @@ namespace OnPoolServer
 
         public bool SendMessage(SocketManager socketManager, Query message, Action<Query> callback)
         {
-            if (callback != null)
-            {
-                messageResponses[message.RequestKey] = callback;
-            }
+            messageResponses[message.RequestKey] = callback;
 
-         
+
             if (message.From == null)
                 message.From = socketManager.Id;
             return socketManager.SendMessage(message);
@@ -148,14 +144,6 @@ namespace OnPoolServer
                                 respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client, response));
                                 break;
                             }
-
-                        case "GetPool":
-                            {
-                                var response = GetPoolByName(query["PoolName"]);
-                                respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client, response));
-                                break;
-                            }
-
                         case "JoinPool":
                             {
                                 JoinPool(client, query["PoolName"]);

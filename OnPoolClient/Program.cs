@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using OnPoolCommon;
@@ -48,27 +49,8 @@ namespace OnPoolClient
 
                 var tests = new List<Action<LocalThreadManager>>
                 {
-                    tc.TestClientResponse,
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
                     tc.TestAllPoolResponse,
-                    tc.TestClientResponse,
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
-                    tc.TestAllPoolResponse,
-                    tc.TestClientResponse,
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
-                    tc.TestAllPoolResponse,
-                    tc.TestClientResponse,
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
-                    tc.TestAllPoolResponse,
-                    tc.TestClientResponse,
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
-                    tc.TestAllPoolResponse,
-                    tc.TestSlammer
+//                    tc.TestSlammer
                 };
 
 
@@ -78,7 +60,7 @@ namespace OnPoolClient
                         var threadManager = LocalThreadManager.Start();
                         test(threadManager);
                         await threadManager.Process();
-                        Console.WriteLine("Test passed");
+//                        Console.WriteLine("Test passed");
                         tc.CleanupTest();
 
                     }

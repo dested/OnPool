@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -6,7 +7,7 @@ using System.Net.Sockets;
 
 namespace OnPoolCommon
 {
-    [DebuggerStepThrough]
+//    [DebuggerStepThrough]
     public class SocketManager
     {
         public static int Counter;
@@ -46,8 +47,8 @@ namespace OnPoolCommon
 
         public void Start()
         {
-            socket.ReceiveTimeout = 30000;
-            socket.SendTimeout = 30000;
+            socket.ReceiveTimeout = 2000;
+            socket.SendTimeout = 2000;
             socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, 0);
             awaitMessagesWorker = new LocalBackgroundWorker<object, WorkerResponse>();
             awaitMessagesWorker.DoWork += (worker, _) => Thread_MonitorStream(worker);
@@ -63,6 +64,7 @@ namespace OnPoolCommon
                 switch (response.Result)
                 {
                     case WorkerResult.Message:
+                        Console.WriteLine(response.Query);
                         onReceive(this, response.Query);
                         break;
                     case WorkerResult.Disconnect:
@@ -89,11 +91,9 @@ namespace OnPoolCommon
             //            Console.WriteLine("Disconnecting " + this.Id);
         }
 
-
         public bool SendMessage(Query message)
         {
-//            Console.WriteLine("Send "+message);
-
+                        Console.WriteLine("Send "+message);
             if (!socket.Connected)
             {
                 Disconnect();
@@ -142,17 +142,7 @@ namespace OnPoolCommon
                 top:
                 while ((i = socket.Receive(bytes)) != 0)
                 {
-                    if (i == 0)
-                    {
-                        if (!Thread_IsConnected())
-                        {
-                            Thread_Disconnected(worker);
-                            return;
-                        }
-                        continue;
-                    }
-
-                    var lastZero = 0;
+                   var lastZero = 0;
                     for (var j = 0; j < i; j++)
                     {
                         var b = bytes[j];

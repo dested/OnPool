@@ -38,11 +38,8 @@ namespace OnPoolClient
 
         private void messageProcess(Query message)
         {
-//            Console.WriteLine("Get "+ message);
-
-
             Client fromClient;
-            if (message.From!=null)
+            if (message.From != null)
                 fromClient = getClientById(message.From);
             else
                 fromClient = getClientById(server.Id);
@@ -50,7 +47,7 @@ namespace OnPoolClient
             switch (message.Direction)
             {
                 case QueryDirection.Request:
-                    var receiptId = message.RequestKey; 
+                    var receiptId = message.RequestKey;
                     onReceiveMessage(fromClient, message, queryResponse =>
                         {
                             var q = Query.Build(message.Method, QueryDirection.Response, message.Type, queryResponse);
@@ -72,7 +69,7 @@ namespace OnPoolClient
                             if (!poolAllCounter.ContainsKey(message.RequestKey))
                                 poolAllCounter[message.RequestKey] = 1;
                             else
-                                poolAllCounter[message.RequestKey] =poolAllCounter[message.RequestKey] + 1;
+                                poolAllCounter[message.RequestKey] = poolAllCounter[message.RequestKey] + 1;
 
                             if (poolAllCounter[message.RequestKey] == int.Parse(message["~PoolAllCount~"]))
                             {
@@ -83,8 +80,9 @@ namespace OnPoolClient
                         else
                         {
                             messageResponses.Remove(message.RequestKey);
-                        } 
-                        callback(message);
+                        }
+                        if (callback != null)
+                            callback(message);
                     }
                     else
                     {
@@ -125,7 +123,7 @@ namespace OnPoolClient
         {
             onMessage += callback;
         }
-        
+
         private void onReceiveMessage(Client from, Query query, RespondMessage respond)
         {
             switch (query.Type)
@@ -134,23 +132,23 @@ namespace OnPoolClient
                     onMessage?.Invoke(from, query, respond);
                     return;
                 case QueryType.Pool:
-                {
-                    var pool = pools.FirstOrDefault(a => a.PoolName == query.To);
-                    pool?.ReceiveMessage(from, query, respond);
-                    return;
-                }
-                case QueryType.PoolAll:
-                {
-                    var pool = pools.FirstOrDefault(a => a.PoolName == query.To);
-                    pool?.ReceiveMessage(from, query, res =>
                     {
-                        var ql = res.ToList();
-                        ql.Add(new QueryParam("~PoolAllCount~", query["~PoolAllCount~"]));
-                        respond(ql.ToArray());
-                    });
-                }
+                        var pool = pools.FirstOrDefault(a => a.PoolName == query.To);
+                        pool?.ReceiveMessage(from, query, respond);
+                        return;
+                    }
+                case QueryType.PoolAll:
+                    {
+                        var pool = pools.FirstOrDefault(a => a.PoolName == query.To);
+                        pool?.ReceiveMessage(from, query, res =>
+                        {
+                            var ql = res.ToList();
+                            ql.Add(new QueryParam("~PoolAllCount~", query["~PoolAllCount~"]));
+                            respond(ql.ToArray());
+                        });
+                    }
                     break;
-                default:throw new Exception("Type not found: "+query);
+                default: throw new Exception("Type not found: " + query);
             }
         }
 
@@ -164,7 +162,7 @@ namespace OnPoolClient
 
 
 
-        public void SendMessage(string clientId, Query query, Action<Query> callback)
+        public void SendMessage(string clientId, Query query, Action<Query> callback = null)
         {
             query.Type = QueryType.Client;
             query.To = clientId;
@@ -173,18 +171,15 @@ namespace OnPoolClient
 
         internal bool sendMessage(Query query, Action<Query> callback)
         {
-            if (callback != null)
-            {
-                var responseKey = Guid.NewGuid().ToString("N");
-                query.RequestKey = responseKey;
-                messageResponses[responseKey] = callback;
-            }
+            var responseKey = Guid.NewGuid().ToString("N");
+            query.RequestKey = responseKey;
+            messageResponses[responseKey] = callback;
 
             if (server.Id != null && query.From == null)
                 query.From = server.Id;
             return server.SendMessage(query);
         }
-         
+
 
         public void GetAllPools(string poolName, Action<GetAllPoolsResponse> callback)
         {
@@ -198,7 +193,7 @@ namespace OnPoolClient
             server.ForceDisconnect();
         }
 
-        public void GetClients(string poolName,Action<Client[]> callback)
+        public void GetClients(string poolName, Action<Client[]> callback)
         {
             var query = Query.Build("GetClients", QueryDirection.Request, QueryType.Server, new QueryParam("PoolName", poolName));
 
@@ -224,14 +219,14 @@ namespace OnPoolClient
             );
         }
 
-        public void SendPoolMessage(string poolName, Query query, Action<Query> callback)
+        public void SendPoolMessage(string poolName, Query query, Action<Query> callback = null)
         {
             query.To = poolName;
             query.Type = QueryType.Pool;
             sendMessage(query, callback);
         }
 
-        public void SendAllPoolMessage(string poolName,Query query, Action<Query> callback)
+        public void SendAllPoolMessage(string poolName, Query query, Action<Query> callback = null)
         {
             query.To = poolName;
             query.Type = QueryType.PoolAll;
