@@ -52,7 +52,7 @@
     <Compile Include="OnPoolServer.cs" />
     <Compile Include="ClientListener.cs" />
     <Compile Include="Pool.cs" />
-    <Compile Include="ServerSwimmer.cs" />
+    <Compile Include="Client.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

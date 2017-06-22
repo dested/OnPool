@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 
 namespace OnPoolCommon
 {
+    [DebuggerStepThrough]
     public class SocketManager
     {
         public static int Counter;
@@ -90,6 +92,8 @@ namespace OnPoolCommon
 
         public bool SendMessage(Query message)
         {
+//            Console.WriteLine("Send "+message);
+
             if (!socket.Connected)
             {
                 Disconnect();

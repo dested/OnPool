@@ -12,6 +12,15 @@ namespace OnPoolClient
         {
             Thread.Sleep(500);
 
+               Task.Run(() =>
+                {
+                    while (true)
+                    {
+                        Thread.Sleep(1000);
+                        Console.WriteLine(SocketManager.Counter);
+                        SocketManager.Counter = 0;
+                    }
+                });
 
             var shouldRunTests = true;
             if (shouldRunTests)
@@ -21,15 +30,7 @@ namespace OnPoolClient
             else
             {
                 var threadManager = LocalThreadManager.Start();
-                /*   Task.Run(() =>
-                   {
-                       while (true)
-                       {
-                           Thread.Sleep(1000);
-                           Console.WriteLine(ClientConnection.counter);
-                           ClientConnection.counter = 0;
-                       }
-                   });*/
+             
 
                 threadManager.Process();
             }
@@ -47,6 +48,22 @@ namespace OnPoolClient
 
                 var tests = new List<Action<LocalThreadManager>>
                 {
+                    tc.TestClientResponse,
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
+                    tc.TestAllPoolResponse,
+                    tc.TestClientResponse,
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
+                    tc.TestAllPoolResponse,
+                    tc.TestClientResponse,
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
+                    tc.TestAllPoolResponse,
+                    tc.TestClientResponse,
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
+                    tc.TestAllPoolResponse,
                     tc.TestClientResponse,
                     tc.TestPoolResponse,
                     tc.TestDirectClientResponse,

@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Security.Authentication.ExtendedProtection;
 using OnPoolCommon;
 using OnPoolCommon.Models;
 
@@ -7,83 +8,45 @@ namespace OnPoolClient
 {
     public class Pool
     {
-        private readonly Func<string, Client> getClient;
-        private readonly OnPoolClient client;
 
-        public Pool(OnPoolClient client, string poolName, Func<string, Client> getClient)
+        public Pool( string poolName, OnMessage onMessage)
         {
-            this.client = client;
-            this.getClient = getClient;
+            this.onMessage = onMessage;
             PoolName = poolName;
         }
 
         public string PoolName { get; set; }
-        private OnMessageWithResponse onMessageWithResponse { get; set; }
+        private OnMessage onMessage { get; set; }
 
-
-      
-        public void ReceiveMessageWithResponse(Client from, Query query, RespondMessage respond)
+        public void ReceiveMessage(Client from, Query query, RespondMessage respond)
         {
-            onMessageWithResponse?.Invoke(from, query, respond);
+            onMessage?.Invoke(from, query, respond);
         }
 
-        public void OnMessageWithResponse(OnMessageWithResponse callback)
+        public void OnMessage(OnMessage callback)
         {
-            onMessageWithResponse += callback;
+            onMessage += callback;
         }
 
-        public void GetClients(Action<Client[]> callback)
-        {
-            var query = Query.Build("GetClients", new QueryParam("PoolName", PoolName));
-
-            client.sendMessageWithResponse(query, response =>
-            {
-                callback(
-                    response.GetJson<GetClientByPoolResponse>()
-                        .Clients
-                        .Select(a => getClient(a.Id))
-                        .ToArray()
-                );
-            });
-        }
-
-        public void JoinPool(Action callback)
-        {
-            client.sendMessageWithResponse(
-                Query.Build("JoinPool", new QueryParam("PoolName", PoolName)),
-                response => { callback(); }
-            );
-        }
-
-        public void SendMessageWithResponse(Query query, Action<Query> callback)
-        {
-            query.Add("~ToPool~", PoolName);
-            client.sendMessageWithResponse(query, callback);
-        }
-
-        public void SendAllMessageWithResponse(Query query, Action<Query> callback)
-        {
-            query.Add("~ToPoolAll~", PoolName);
-            client.sendMessageWithResponse(query, callback);
-        }
     }
 
     public class Client
     {
-        private readonly OnPoolClient client;
+        private readonly OnPoolClient poolClient;
 
-        public Client(OnPoolClient client, string clientId)
+        public Client(OnPoolClient poolClient, string clientId)
         {
-            this.client = client;
+            this.poolClient = poolClient;
             Id = clientId;
         }
 
         public string Id { get; set; }
 
-        public void SendMessageWithResponse(Query query, Action<Query> callback)
+        public void SendMessage(Query query, Action<Query> callback)
         {
-            query.Add("~ToClient~", Id);
-            client.sendMessageWithResponse(query, callback);
+            query.Type = QueryType.Client;
+            query.To = Id;
+            poolClient.sendMessage(query, callback);
         }
     }
 }

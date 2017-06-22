@@ -1,3 +1,5 @@
+using System;
+
 namespace OnPoolCommon.Models
 {
     public class ClientResponse

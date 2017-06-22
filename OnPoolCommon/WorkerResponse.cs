@@ -14,7 +14,7 @@ namespace OnPoolCommon
 
         public static WorkerResponse Disconnect()
         {
-            return new WorkerResponse {Result = WorkerResult.Disconnect};
+            return new WorkerResponse { Result = WorkerResult.Disconnect };
         }
 
         public static WorkerResponse FromQuery(byte[] continueBuffer, byte[] bytes, int start, int len)
@@ -22,18 +22,31 @@ namespace OnPoolCommon
             var index = 0;
             var sb = new StringBuilder();
 
+            var totalLen = len;
+
+            byte b1 = 0, b2 = 0;
             if (continueBuffer != null)
+            {
+                totalLen += continueBuffer.Length;
                 for (int i = 0, l = continueBuffer.Length; i < l; i++)
-                    sb.Append(Convert.ToChar(continueBuffer[i]));
+                {
+                    if (b1 == 0) b1 = continueBuffer[i];
+                    else if (b2 == 0) b2 = continueBuffer[i];
+                    else sb.Append(Convert.ToChar(continueBuffer[i]));
+                }
+            }
+
 
             for (var i = start; i < start + len; i++)
-                sb.Append(Convert.ToChar(bytes[i]));
+                if (b1 == 0) b1 = bytes[i];
+                else if (b2 == 0) b2 = bytes[i];
+                else sb.Append(Convert.ToChar(bytes[i]));
 
 
-            var query = Query.Parse(sb.ToString());
+            var query = Query.Parse(b1, b2, sb.ToString());
             if (query == null)
                 return null;
-            return new WorkerResponse {Result = WorkerResult.Message, Query = query};
+            return new WorkerResponse { Result = WorkerResult.Message, Query = query };
         }
     }
 
