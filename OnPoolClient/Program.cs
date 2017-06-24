@@ -31,8 +31,6 @@ namespace OnPoolClient
             else
             {
                 var threadManager = LocalThreadManager.Start();
-             
-
                 threadManager.Process();
             }
 
@@ -47,40 +45,23 @@ namespace OnPoolClient
             {
                 var tc = new Tests();
 
-                var tests = new List<Action<LocalThreadManager>>
+                var tests = new List<Action<LocalThreadManager>>();
+
+                for (int i = 0; i < 100; i++)
                 {
-                    tc.TestOnPoolUpdatedResponse,
-                    tc.TestOnPoolDisconnectedResponse,
-                    tc.TestClientResponse,
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
-                    tc.TestAllPoolResponse,
-//                    tc.TestSlammer
+                    tests.AddRange(new Action<LocalThreadManager>[]
+                    {
+                        tc.TestLeavePool,
+                        tc.TestOnPoolUpdatedResponse,
+                        tc.TestOnPoolDisconnectedResponse,
+                        tc.TestClientResponse,
+                        tc.TestPoolResponse,
+                        tc.TestDirectClientResponse,
+                        tc.TestAllPoolResponse,
+                    });
 
-                   /*
-                  
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
-                    tc.TestAllPoolResponse,
-                    tc.TestClientResponse,
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
-                    tc.TestAllPoolResponse,
-                    tc.TestClientResponse,
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
-                    tc.TestAllPoolResponse,
-                    tc.TestClientResponse,
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
-                    tc.TestAllPoolResponse,
-                    tc.TestClientResponse,
-                    tc.TestPoolResponse,
-                    tc.TestDirectClientResponse,
-                    tc.TestAllPoolResponse,
-                    tc.TestSlammer*/
-                };
-
+                }
+                tests.Add(tc.TestSlammer);
 
                 while (true)
                     foreach (var test in tests)

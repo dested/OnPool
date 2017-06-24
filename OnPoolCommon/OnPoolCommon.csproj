@@ -53,12 +53,11 @@
     <Compile Include="ILocalBackgroundWorker.cs" />
     <Compile Include="LocalThreadManager.cs" />
     <Compile Include="Models\GetAllPoolsResponse.cs" />
-    <Compile Include="Models\GetSwimmerByPoolResponse.cs" />
-    <Compile Include="Models\GetPoolByNameResponse.cs" />
+    <Compile Include="Models\GetClientByPoolResponse.cs" />
     <Compile Include="SocketManager.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="LocalBackgroundWorker.cs" />
-    <Compile Include="Models\SwimmerResponse.cs" />
+    <Compile Include="Models\ClientResponse.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Query.cs" />
     <Compile Include="WorkerResponse.cs" />

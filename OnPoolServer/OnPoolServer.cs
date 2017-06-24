@@ -100,7 +100,7 @@ namespace OnPoolServer
 
         public bool SendMessage(SocketManager socketManager, Query message, Action<Query> callback)
         {
-            messageResponses[socketManager.Id+ message.RequestKey] = callback;
+            messageResponses[socketManager.Id + message.RequestKey] = callback;
 
 
             if (message.From == null)
@@ -169,7 +169,20 @@ namespace OnPoolServer
                                 respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client));
                                 break;
                             }
-
+                        case "LeavePool":
+                            {
+                                var pool = getPoolByName(query["PoolName"]);
+                                if (pool.ContainsClient(client))
+                                {
+                                    pool.RemoveClient(client);
+                                    if (pool.IsEmpty())
+                                    {
+                                        pools.Remove(pool);
+                                    }
+                                }
+                                respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client));
+                                break;
+                            }
                         case "GetClients":
                             {
                                 var response = GetClientsInPool(query["PoolName"]);
@@ -190,6 +203,7 @@ namespace OnPoolServer
         {
             var client = new Client(socketManager, socketManager.Id);
             Clients.Add(client);
+            JoinPool(client, "Everyone");
         }
 
         public Client GetClient(string id)
@@ -238,15 +252,6 @@ namespace OnPoolServer
             };
         }
 
-        public GetPoolByNameResponse GetPoolByName(string poolName)
-        {
-            var pool = getPoolByName(poolName);
-
-            return new GetPoolByNameResponse
-            {
-                PoolName = pool.Name
-            };
-        }
 
         private Pool getPoolByName(string poolName)
         {

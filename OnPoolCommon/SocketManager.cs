@@ -1,4 +1,6 @@
-﻿using System;
+﻿//#define DUMP
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -7,7 +9,7 @@ using System.Net.Sockets;
 
 namespace OnPoolCommon
 {
-    //    [DebuggerStepThrough]
+    [DebuggerStepThrough]
     public class SocketManager
     {
         public static int Counter;
@@ -15,7 +17,6 @@ namespace OnPoolCommon
 
         private LocalBackgroundWorker<object, WorkerResponse> awaitMessagesWorker;
         private bool disconnected;
-        private readonly object disconnectLocker = new object();
         private readonly string serverIp;
         private Socket socket;
 
@@ -23,7 +24,9 @@ namespace OnPoolCommon
         {
             this.socket = socket;
             Id = Guid.NewGuid().ToString("N");
-            //            Console.WriteLine("Connected Client " + client.Id);
+#if DUMP
+            Console.WriteLine("Connected Client " + Id);
+#endif
         }
 
 
@@ -64,7 +67,9 @@ namespace OnPoolCommon
                 switch (response.Result)
                 {
                     case WorkerResult.Message:
-                        //                        Console.WriteLine(response.Query);
+#if DUMP
+                        Console.WriteLine(response.Query);
+#endif
                         onReceive(this, response.Query);
                         break;
                     case WorkerResult.Disconnect:
@@ -84,30 +89,30 @@ namespace OnPoolCommon
 
         private void Disconnect()
         {
-            lock (disconnectLocker)
-            {
-                if (disconnected)
-                    return;
-                disconnected = true;
-            }
+            if (disconnected)
+                return;
+            disconnected = true;
             OnDisconnect?.Invoke(this);
             awaitMessagesWorker.Dispose();
             try
             {
-                socket.Shutdown(SocketShutdown.Both);
+                //                socket.Shutdown(SocketShutdown.Both);
                 socket.Close();
             }
             catch (SocketException)
             {
 
             }
-            //            this.onReceive = null;
-            //            Console.WriteLine("Disconnecting " + this.Id);
+#if DUMP
+            Console.WriteLine("Disconnecting " + this.Id);
+#endif
         }
 
         public bool SendMessage(Query message)
         {
-            //                        Console.WriteLine("Send "+message);
+#if DUMP
+            Console.WriteLine("Send " + message);
+#endif
             if (!socket.Connected)
             {
                 Disconnect();

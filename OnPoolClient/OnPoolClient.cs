@@ -172,19 +172,6 @@ namespace OnPoolClient
             sendMessage(query, callback, responseOptions);
         }
 
-        internal bool sendMessage(Query query, Action<Query> callback, ResponseOptions responseOptions)
-        {
-            var responseKey = Guid.NewGuid().ToString("N");
-            query.RequestKey = responseKey;
-            query.ResponseOptions = responseOptions;
-            messageResponses[responseKey] = callback;
-
-            if (server.Id != null && query.From == null)
-                query.From = server.Id;
-            return server.SendMessage(query);
-        }
-
-
         public void GetAllPools(string poolName, Action<GetAllPoolsResponse> callback)
         {
             var query = Query.Build("GetAllPools", QueryDirection.Request, QueryType.Server);
@@ -236,6 +223,16 @@ namespace OnPoolClient
             );
         }
 
+        public void LeavePool(string poolName)
+        {
+            sendMessage(
+                Query.Build("LeavePool", QueryDirection.Request, QueryType.Server, new QueryParam("PoolName", poolName)),
+                response => {
+                    this.pools.RemoveAll(a => a.PoolName == poolName);
+                    }, ResponseOptions.SingleResponse
+            );
+        }
+
         public void SendPoolMessage(string poolName, Query query, Action<Query> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
             query.To = poolName;
@@ -249,6 +246,25 @@ namespace OnPoolClient
             query.Type = QueryType.PoolAll;
             sendMessage(query, callback, responseOptions);
         }
+
+
+
+
+
+
+
+        internal bool sendMessage(Query query, Action<Query> callback, ResponseOptions responseOptions)
+        {
+            var responseKey = Guid.NewGuid().ToString("N");
+            query.RequestKey = responseKey;
+            query.ResponseOptions = responseOptions;
+            messageResponses[responseKey] = callback;
+
+            if (server.Id != null && query.From == null)
+                query.From = server.Id;
+            return server.SendMessage(query);
+        }
+
     }
 
 }
