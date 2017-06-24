@@ -45,12 +45,13 @@ namespace OnPoolClient
             {
                 var tc = new Tests();
 
-                var tests = new List<Action<LocalThreadManager>>();
+                var tests = new List<Action<Action>>();
 
                 for (int i = 0; i < 100; i++)
                 {
-                    tests.AddRange(new Action<LocalThreadManager>[]
+                    tests.AddRange(new Action<Action>[]
                     {
+                        tc.TestEveryone,
                         tc.TestLeavePool,
                         tc.TestOnPoolUpdatedResponse,
                         tc.TestOnPoolDisconnectedResponse,
@@ -67,7 +68,9 @@ namespace OnPoolClient
                     foreach (var test in tests)
                     {
                         var threadManager = LocalThreadManager.Start();
-                        test(threadManager);
+                        test(() => {
+                            threadManager.Kill();
+                        });
                         await threadManager.Process();
                         tc.CleanupTest();
                     }

@@ -10,22 +10,21 @@ namespace OnPoolServer
     {
         private int roundRobin;
         public string Name { get; set; }
-        private List<Client> clients = new List<Client>();
+        readonly Dictionary<string, Action> onClientChange = new Dictionary<string, Action>();
+        private readonly List<Client> clients = new List<Client>();
 
         public Pool(string poolName)
         {
             Name = poolName;
         }
-        Dictionary<string, Action> onClientChange = new Dictionary<string, Action>();
+
 
         public void OnClientChange(Client forClient, Action callback)
         {
-            if (onClientChange.ContainsKey(forClient.Id))
-            {
+            if (onClientChange.ContainsKey(forClient.Id)) {
                 onClientChange[forClient.Id] += callback;
             }
-            else
-            {
+            else {
                 onClientChange[forClient.Id] = callback;
             }
         }
@@ -35,8 +34,7 @@ namespace OnPoolServer
         public void AddClient(Client client)
         {
             clients.Add(client);
-            foreach (var action in onClientChange)
-            {
+            foreach (var action in onClientChange.ToArray()) {
                 action.Value.Invoke();
             }
         }
@@ -45,8 +43,7 @@ namespace OnPoolServer
             clients.Remove(client);
 
             onClientChange.Remove(client.Id);
-            foreach (var action in onClientChange.ToArray())
-            {
+            foreach (var action in onClientChange.ToArray()) {
                 action.Value.Invoke();
             }
         }

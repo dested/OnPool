@@ -160,7 +160,9 @@ namespace OnPoolClient
         public void GetClientId(Action<string> callback)
         {
             var query = Query.Build("GetClientId", QueryDirection.Request, QueryType.Server);
-            sendMessage(query, response => { callback(response.GetJson<string>()); }, ResponseOptions.SingleResponse);
+            sendMessage(query, response => {
+                callback(response.GetJson<string>());
+            }, ResponseOptions.SingleResponse);
         }
 
 

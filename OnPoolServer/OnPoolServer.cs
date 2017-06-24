@@ -265,9 +265,12 @@ namespace OnPoolServer
         public void JoinPool(Client client, string poolName)
         {
             var pool = getPoolByName(poolName);
-            if (pool.ContainsClient(client)) return;
-
+            if (pool.ContainsClient(client))
+            {
+                return;
+            }
             pool.AddClient(client);
+
         }
 
         public GetClientByPoolResponse GetClientsInPool(string poolName)
