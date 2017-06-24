@@ -5,7 +5,7 @@ using System.Threading;
 
 namespace OnPoolCommon
 {
-    public class LocalBackgroundWorker<TPayload, TResponse> : ILocalBackgroundWorker where TPayload : class
+    public class LocalBackgroundWorker<TPayload, TResponse> :IDisposable, ILocalBackgroundWorker where TPayload : class
     {
         private readonly BackgroundWorker bw;
         private bool noResponses = true;
@@ -48,7 +48,9 @@ namespace OnPoolCommon
         {
             if (UserLocalWorker)
             {
-                Thread = new Thread(() => { DoWork(this, payload); });
+                Thread = new Thread(() => {
+                    DoWork(this, payload);
+                });
                 Thread.Start();
             }
             else
@@ -75,6 +77,18 @@ namespace OnPoolCommon
                 }
             else
                 bw.ReportProgress(0, response);
+        }
+
+        public void Dispose()
+        {
+            if (UserLocalWorker)
+            {
+                LocalThreadManager.GetInstance().RemoveWorker(this);
+            }
+            else
+            {
+                bw.Dispose();
+            }
         }
     }
 }

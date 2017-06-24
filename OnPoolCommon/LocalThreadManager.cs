@@ -30,25 +30,49 @@ namespace OnPoolCommon
             return Task.Run(() =>
             {
                 while (alive)
-                    for (var index = workers.Count - 1; index >= 0; index--)
+                {
+                    lock (workers)
                     {
-                        var worker = workers[index];
-                        var response = worker.TryGetResponse();
-                        if (response != null)
-                            worker.ProcessResponseMainThread(response);
+                        var originalCount = workers.Count;
+                        for (var index = workers.Count - 1; index >= 0; index--)
+                        {
+                            
+                            var worker = workers[index];
+                            var response = worker.TryGetResponse();
+                            if (response != null)
+                            {
+                                worker.ProcessResponseMainThread(response);
+                                if (workers.Count != originalCount)
+                                {
+                                    break;
+                                }
+                            }
+                        }
                     }
+                }
             });
         }
 
 
         public void AddWorker(ILocalBackgroundWorker worker)
         {
-            workers.Add(worker);
+            lock (workers)
+            {
+                workers.Add(worker);
+            }
         }
 
         public void Kill()
         {
             alive = false;
+        }
+
+        public void RemoveWorker(ILocalBackgroundWorker localBackgroundWorker)
+        {
+            lock (workers)
+            {
+                workers.Remove(localBackgroundWorker);
+            }
         }
     }
 }

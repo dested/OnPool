@@ -24,7 +24,7 @@ namespace OnPoolCommon
 
             var totalLen = len;
 
-            byte b1 = 0, b2 = 0;
+            byte b1 = 0, b2 = 0, b3 = 0;
             if (continueBuffer != null)
             {
                 totalLen += continueBuffer.Length;
@@ -32,6 +32,7 @@ namespace OnPoolCommon
                 {
                     if (b1 == 0) b1 = continueBuffer[i];
                     else if (b2 == 0) b2 = continueBuffer[i];
+                    else if (b3 == 0) b3 = continueBuffer[i];
                     else sb.Append(Convert.ToChar(continueBuffer[i]));
                 }
             }
@@ -40,10 +41,11 @@ namespace OnPoolCommon
             for (var i = start; i < start + len; i++)
                 if (b1 == 0) b1 = bytes[i];
                 else if (b2 == 0) b2 = bytes[i];
+                else if (b3 == 0) b3 = bytes[i];
                 else sb.Append(Convert.ToChar(bytes[i]));
 
 
-            var query = Query.Parse(b1, b2, sb.ToString());
+            var query = Query.Parse(b1, b2, b3, sb.ToString());
             if (query == null)
                 return null;
             return new WorkerResponse { Result = WorkerResult.Message, Query = query };

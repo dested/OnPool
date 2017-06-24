@@ -49,8 +49,36 @@ namespace OnPoolClient
 
                 var tests = new List<Action<LocalThreadManager>>
                 {
+                    tc.TestOnPoolUpdatedResponse,
+                    tc.TestOnPoolDisconnectedResponse,
+                    tc.TestClientResponse,
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
                     tc.TestAllPoolResponse,
 //                    tc.TestSlammer
+
+                   /*
+                  
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
+                    tc.TestAllPoolResponse,
+                    tc.TestClientResponse,
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
+                    tc.TestAllPoolResponse,
+                    tc.TestClientResponse,
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
+                    tc.TestAllPoolResponse,
+                    tc.TestClientResponse,
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
+                    tc.TestAllPoolResponse,
+                    tc.TestClientResponse,
+                    tc.TestPoolResponse,
+                    tc.TestDirectClientResponse,
+                    tc.TestAllPoolResponse,
+                    tc.TestSlammer*/
                 };
 
 
@@ -60,9 +88,7 @@ namespace OnPoolClient
                         var threadManager = LocalThreadManager.Start();
                         test(threadManager);
                         await threadManager.Process();
-//                        Console.WriteLine("Test passed");
                         tc.CleanupTest();
-
                     }
             }
             catch (Exception ex)

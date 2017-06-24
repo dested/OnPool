@@ -9,7 +9,7 @@ namespace OnPoolClient
     public class Pool
     {
 
-        public Pool( string poolName, OnMessage onMessage)
+        public Pool(string poolName, OnMessage onMessage)
         {
             this.onMessage = onMessage;
             PoolName = poolName;
@@ -32,21 +32,13 @@ namespace OnPoolClient
 
     public class Client
     {
-        private readonly OnPoolClient poolClient;
 
-        public Client(OnPoolClient poolClient, string clientId)
+        public Client( string clientId)
         {
-            this.poolClient = poolClient;
             Id = clientId;
         }
 
         public string Id { get; set; }
 
-        public void SendMessage(Query query, Action<Query> callback)
-        {
-            query.Type = QueryType.Client;
-            query.To = Id;
-            poolClient.sendMessage(query, callback);
-        }
     }
 }

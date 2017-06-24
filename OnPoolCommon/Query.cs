@@ -28,8 +28,9 @@ namespace OnPoolCommon
         public string Method { get; set; }
         public string RequestKey { get; set; }
 
-        private Query(string method, QueryDirection direction, QueryType type, params QueryParam[] queryParams)
+        private Query(string method, QueryDirection direction, QueryType type, ResponseOptions responseOptions, params QueryParam[] queryParams)
         {
+            ResponseOptions = responseOptions;
             Direction = direction;
             Type = type;
             Method = method;
@@ -38,6 +39,7 @@ namespace OnPoolCommon
 
         public Query(Query query)
         {
+            ResponseOptions = query.ResponseOptions;
             To = query.To;
             From = query.From;
             Method = query.Method;
@@ -48,6 +50,7 @@ namespace OnPoolCommon
         }
 
         private Dictionary<string, string> QueryParams { get; }
+        public ResponseOptions ResponseOptions { get; set; }
 
         public string this[string key]
         {
@@ -101,32 +104,34 @@ namespace OnPoolCommon
                 sb.Append("&");
             }
 
-            var bytes = new byte[sb.Length + 1 + 2];
+            var bytes = new byte[sb.Length + 3 + 1];
             bytes[0] = (byte)Direction;
             bytes[1] = (byte)Type;
-            Encoding.ASCII.GetBytes(sb + "\0", 0, sb.Length + 1, bytes, 2);
+            bytes[2] = (byte)ResponseOptions;
+            Encoding.ASCII.GetBytes(sb + "\0", 0, sb.Length + 1, bytes, 3);
             return bytes;
         }
 
         public static Query Build(string method, QueryDirection direction, QueryType type, params QueryParam[] queryParams)
         {
-            return new Query(method, direction, type, queryParams);
+            return new Query(method, direction, type, ResponseOptions.SingleResponse, queryParams);
         }
 
         public static Query Build<T>(string method, QueryDirection direction, QueryType type, T json, params QueryParam[] queryParams)
         {
             var qp = new List<QueryParam> { new QueryParam("Json", json.ToJson()) };
             qp.AddRange(queryParams);
-            return new Query(method, direction, type, qp.ToArray());
+            return new Query(method, direction, type,ResponseOptions.SingleResponse, qp.ToArray());
         }
 
 
-        public static Query Parse(byte b1, byte b2, string message)
+        public static Query Parse(byte b1, byte b2, byte b3, string message)
         {
             try
             {
                 QueryDirection direction = (QueryDirection)b1;
                 QueryType type = (QueryType)b2;
+                ResponseOptions responseOptions = (ResponseOptions)b3;
 
                 var pieces = message.Split('|');
 
@@ -143,13 +148,14 @@ namespace OnPoolCommon
                         qparams.Add(new QueryParam(querySplit[0], Uri.UnescapeDataString(querySplit[1])));
                     }
                 }
-                var query = new Query(messageSplit[0], direction, type, qparams.ToArray());
+                var query = new Query(messageSplit[0], direction, type, responseOptions, qparams.ToArray());
                 if (!string.IsNullOrWhiteSpace(pieces[0]))
                     query.To = pieces[0];
                 if (!string.IsNullOrWhiteSpace(pieces[1]))
                     query.From = pieces[1];
                 if (!string.IsNullOrWhiteSpace(pieces[2]))
                     query.RequestKey = pieces[2];
+
                 return query;
             }
             catch (Exception ex)
@@ -165,7 +171,7 @@ namespace OnPoolCommon
         public override string ToString()
         {
             var sb = new StringBuilder();
-        
+
             sb.Append(Method);
             sb.Append("?");
             foreach (var query in QueryParams)
@@ -185,6 +191,8 @@ namespace OnPoolCommon
             sb.Append(From);
             sb.Append("|");
             sb.Append(RequestKey);
+            sb.Append("|");
+            sb.Append(ResponseOptions);
             return sb.ToString();
         }
 
@@ -213,5 +221,10 @@ namespace OnPoolCommon
         {
             return new QueryParam("Json", t.ToJson());
         }
+    }
+    public enum ResponseOptions
+    {
+        SingleResponse = 1,
+        OpenResponse = 2
     }
 }
