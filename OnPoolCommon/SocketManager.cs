@@ -9,7 +9,7 @@ using System.Net.Sockets;
 
 namespace OnPoolCommon
 {
-    [DebuggerStepThrough]
+//    [DebuggerStepThrough]
     public class SocketManager
     {
         private LocalBackgroundWorker<object, WorkerResponse> awaitMessagesWorker;

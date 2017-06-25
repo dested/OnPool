@@ -2,6 +2,8 @@
 =============
 
 
+manages groups of servers and faciliates communcation between them
+
 A simple real time server messaging manager, the next best thing to managing your own socket connections
 
 

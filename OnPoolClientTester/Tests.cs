@@ -38,8 +38,7 @@ namespace OnPoolClientTester
                         }
                     });
 
-                    var pool=manager1.JoinPool(poolName);
-                    pool.OnMessage((from, message, respond) => { });
+                    manager1.JoinPool(poolName);
                     BuildClient(manager2 => {
                         m2 = manager2;
                         manager2.OnReady(() => { manager2.JoinPool(poolName); });
@@ -104,9 +103,9 @@ namespace OnPoolClientTester
                                     BuildClient(manager4 => {
                                         manager4.OnReady(() => {
                                             manager4.JoinPool(poolName);
-                                            manager4.Disconnet();
-                                            manager3.Disconnet();
-                                            manager2.Disconnet();
+                                            manager4.Disconnect();
+                                            manager3.Disconnect();
+                                            manager2.Disconnect();
                                         });
                                     });
                                 });
@@ -254,9 +253,9 @@ namespace OnPoolClientTester
                             manager1.OnPoolUpdated(poolName, clients => {
                                 if (clients.Length == 1) {
                                     var swim = clients.First();
-                                    manager2.SendClientMessage<Payload>(swim.Id, "Hi", new Payload() {Foo="hello",Bar = "Elido"},
+                                    manager2.SendClientMessage<Payload>(swim.Id, "Hi", new Payload() { Foo = "hello", Bar = "Elido" },
                                         q => {
-                                            Assert.AreEqual(q.Foo, "hello");
+                                            Assert.AreEqual(q.Foo, "hi");
                                             Assert.AreEqual(q.Bar, "ashley");
                                             success();
                                         }
@@ -427,9 +426,9 @@ namespace OnPoolClientTester
                             Action exec = null;
                             exec = () => {
                                 manager.SendPoolMessage<int>(poolName, "Bar", 13, m => {
-                                        Assert.AreEqual(m, 14);
-                                        exec();
-                                    }
+                                    Assert.AreEqual(m, 14);
+                                    exec();
+                                }
                                 );
                             };
                             exec();
@@ -450,7 +449,7 @@ namespace OnPoolClientTester
         public void CleanupTest()
         {
             foreach (var clientBrokerManager in connectedClients)
-                clientBrokerManager.Disconnet();
+                clientBrokerManager.Disconnect();
             connectedClients = new List<OnPoolClient.OnPoolClient>();
         }
     }

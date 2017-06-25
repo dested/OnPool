@@ -36,72 +36,53 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 var _this = this;
 Object.defineProperty(exports, "__esModule", { value: true });
-var clientBrokerManager_1 = require("./clientBrokerManager");
-var query_1 = require("./common/query");
 var tests_1 = require("./tests");
 var shouldRunTests = true;
 if (shouldRunTests) {
     var runTests = function () { return __awaiter(_this, void 0, void 0, function () {
-        var tests, ex_1;
+        var tc, tests, i, j, ex_1;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    tests = new tests_1.Tests();
+                    tc = new tests_1.Tests();
+                    tests = [];
+                    for (i = 0; i < 10; i++) {
+                        tests.push.apply(tests, [
+                            tc.TestEveryone,
+                            tc.TestLeavePool,
+                            tc.TestOnPoolUpdatedResponse,
+                            tc.TestOnPoolDisconnectedResponse,
+                            tc.TestClientResponse,
+                            tc.TestPoolResponse,
+                            tc.TestDirectClientResponse,
+                            tc.TestAllPoolResponse,
+                            tc.TestClientSendObject
+                        ]);
+                    }
+                    tests.push(tc.TestSlammer);
                     _a.label = 1;
                 case 1:
-                    _a.trys.push([1, 3, , 4]);
-                    // await tests.run(tests.TestSwimmerResponse);
-                    // await tests.run(tests.TestPoolResponse);
-                    // await tests.run(tests.TestAllPoolResponse);
-                    // await tests.run(tests.Test100ClientsAll);
-                    return [4 /*yield*/, tests.run(tests.TestSlammer)];
+                    _a.trys.push([1, 6, , 7]);
+                    j = 0;
+                    _a.label = 2;
                 case 2:
-                    // await tests.run(tests.TestSwimmerResponse);
-                    // await tests.run(tests.TestPoolResponse);
-                    // await tests.run(tests.TestAllPoolResponse);
-                    // await tests.run(tests.Test100ClientsAll);
-                    _a.sent();
-                    return [3 /*break*/, 4];
+                    if (!(j < tests.length)) return [3 /*break*/, 5];
+                    return [4 /*yield*/, tc.run(tests[j])];
                 case 3:
+                    _a.sent();
+                    _a.label = 4;
+                case 4:
+                    j++;
+                    return [3 /*break*/, 2];
+                case 5: return [3 /*break*/, 7];
+                case 6:
                     ex_1 = _a.sent();
                     console.error(ex_1);
-                    return [3 /*break*/, 4];
-                case 4: return [2 /*return*/];
+                    return [3 /*break*/, 7];
+                case 7: return [2 /*return*/];
             }
         });
     }); };
     runTests();
 }
-else {
-    var c_1 = new clientBrokerManager_1.ClientBrokerManager();
-    c_1.ConnectToBroker("127.0.0.1");
-    c_1.OnDisconnect(function () {
-    });
-    c_1.OnMessage(function (from, message) {
-        console.log(message.ToString());
-    });
-    c_1.OnMessageWithResponse(function (from, message, respond) {
-        console.log(message.ToString());
-        respond(query_1.Query.BuildWithJson("Baz", 12));
-    });
-    c_1.OnReady(function () {
-        c_1.GetPool("GameServers", function (pool) {
-            pool.OnMessage(function (from, message) {
-                console.log(message.ToString());
-            });
-            pool.OnMessageWithResponse(function (from, message, respond) {
-                console.log(message.ToString());
-                respond(query_1.Query.BuildWithJson("Baz", 12));
-            });
-            pool.JoinPool(function () {
-                pool.SendMessage(query_1.Query.Build("CreateGame", new query_1.QueryParam("Name", "B")));
-                pool.SendAllMessage(query_1.Query.Build("WakeUp"));
-                pool.SendMessageWithResponse(query_1.Query.Build("CreateName"), function (message) {
-                });
-                pool.SendAllMessageWithResponse(query_1.Query.Build("WakeUp"), function (message) {
-                });
-            });
-        });
-    });
-}
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL2FwcC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxpQkFnRUE7O0FBaEVBLDZEQUEwRDtBQUMxRCx3Q0FBaUQ7QUFDakQsaUNBQThCO0FBRzlCLElBQUksY0FBYyxHQUFHLElBQUksQ0FBQztBQUUxQixFQUFFLENBQUMsQ0FBQyxjQUFjLENBQUMsQ0FBQyxDQUFDO0lBQ2pCLElBQUksUUFBUSxHQUFHO1lBQ1AsS0FBSzs7Ozs0QkFBRyxJQUFJLGFBQUssRUFBRTs7OztvQkFFeEIsOENBQThDO29CQUM5QywyQ0FBMkM7b0JBQzNDLDhDQUE4QztvQkFDOUMsNENBQTRDO29CQUN4QyxxQkFBTSxLQUFLLENBQUMsR0FBRyxDQUFDLEtBQUssQ0FBQyxXQUFXLENBQUMsRUFBQTs7b0JBSnRDLDhDQUE4QztvQkFDOUMsMkNBQTJDO29CQUMzQyw4Q0FBOEM7b0JBQzlDLDRDQUE0QztvQkFDeEMsU0FBa0MsQ0FBQzs7OztvQkFFbEMsT0FBTyxDQUFDLEtBQUssQ0FBQyxJQUFFLENBQUMsQ0FBQzs7Ozs7U0FHekIsQ0FBQztJQUNGLFFBQVEsRUFBRSxDQUFDO0FBRWYsQ0FBQztBQUFDLElBQUksQ0FBQyxDQUFDO0lBQ0osSUFBSSxHQUFDLEdBQUcsSUFBSSx5Q0FBbUIsRUFBRSxDQUFDO0lBQ2xDLEdBQUMsQ0FBQyxlQUFlLENBQUMsV0FBVyxDQUFDLENBQUM7SUFDL0IsR0FBQyxDQUFDLFlBQVksQ0FBQztJQUNmLENBQUMsQ0FBQyxDQUFDO0lBQ0gsR0FBQyxDQUFDLFNBQVMsQ0FBQyxVQUFDLElBQUksRUFBQyxPQUFPO1FBQ3JCLE9BQU8sQ0FBQyxHQUFHLENBQUMsT0FBTyxDQUFDLFFBQVEsRUFBRSxDQUFDLENBQUM7SUFDcEMsQ0FBQyxDQUFDLENBQUM7SUFFSCxHQUFDLENBQUMscUJBQXFCLENBQUMsVUFBQyxJQUFJLEVBQUMsT0FBTyxFQUFFLE9BQU87UUFDMUMsT0FBTyxDQUFDLEdBQUcsQ0FBQyxPQUFPLENBQUMsUUFBUSxFQUFFLENBQUMsQ0FBQztRQUNoQyxPQUFPLENBQUMsYUFBSyxDQUFDLGFBQWEsQ0FBQyxLQUFLLEVBQUUsRUFBRSxDQUFDLENBQUMsQ0FBQztJQUM1QyxDQUFDLENBQUMsQ0FBQztJQUVILEdBQUMsQ0FBQyxPQUFPLENBQUM7UUFDTixHQUFDLENBQUMsT0FBTyxDQUFDLGFBQWEsRUFDbkIsVUFBQSxJQUFJO1lBQ0EsSUFBSSxDQUFDLFNBQVMsQ0FBQyxVQUFDLElBQUksRUFBQyxPQUFPO2dCQUN4QixPQUFPLENBQUMsR0FBRyxDQUFDLE9BQU8sQ0FBQyxRQUFRLEVBQUUsQ0FBQyxDQUFDO1lBQ3BDLENBQUMsQ0FBQyxDQUFDO1lBQ0gsSUFBSSxDQUFDLHFCQUFxQixDQUFDLFVBQUMsSUFBSSxFQUFDLE9BQU8sRUFBRSxPQUFPO2dCQUM3QyxPQUFPLENBQUMsR0FBRyxDQUFDLE9BQU8sQ0FBQyxRQUFRLEVBQUUsQ0FBQyxDQUFDO2dCQUNoQyxPQUFPLENBQUMsYUFBSyxDQUFDLGFBQWEsQ0FBQyxLQUFLLEVBQUUsRUFBRSxDQUFDLENBQUMsQ0FBQztZQUM1QyxDQUFDLENBQUMsQ0FBQztZQUVILElBQUksQ0FBQyxRQUFRLENBQUM7Z0JBQ1YsSUFBSSxDQUFDLFdBQVcsQ0FBQyxhQUFLLENBQUMsS0FBSyxDQUFDLFlBQVksRUFBRSxJQUFJLGtCQUFVLENBQUMsTUFBTSxFQUFFLEdBQUcsQ0FBQyxDQUFDLENBQUMsQ0FBQztnQkFDekUsSUFBSSxDQUFDLGNBQWMsQ0FBQyxhQUFLLENBQUMsS0FBSyxDQUFDLFFBQVEsQ0FBQyxDQUFDLENBQUM7Z0JBRTNDLElBQUksQ0FBQyx1QkFBdUIsQ0FBQyxhQUFLLENBQUMsS0FBSyxDQUFDLFlBQVksQ0FBQyxFQUFFLFVBQUMsT0FBTztnQkFDaEUsQ0FBQyxDQUFDLENBQUM7Z0JBQ0gsSUFBSSxDQUFDLDBCQUEwQixDQUFDLGFBQUssQ0FBQyxLQUFLLENBQUMsUUFBUSxDQUFDLEVBQUUsVUFBQyxPQUFPO2dCQUMvRCxDQUFDLENBQUMsQ0FBQztZQUNQLENBQUMsQ0FBQyxDQUFDO1FBQ1AsQ0FBQyxDQUFDLENBQUM7SUFFWCxDQUFDLENBQUMsQ0FBQztBQUVQLENBQUMifQ==
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYXBwLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL2FwcC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7QUFBQSxpQkF3Q0E7O0FBeENBLGlDQUFnQztBQUVoQyxJQUFJLGNBQWMsR0FBRyxJQUFJLENBQUM7QUFFMUIsRUFBRSxDQUFDLENBQUMsY0FBYyxDQUFDLENBQUMsQ0FBQztJQUNqQixJQUFJLFFBQVEsR0FBRztZQUNMLEVBQUUsRUFHRixLQUFLLEVBQ0YsQ0FBQzs7Ozt5QkFKQyxJQUFJLGFBQUssRUFBRTs0QkFHMkQsRUFBRTtvQkFDbkYsR0FBRyxDQUFDLENBQUMsSUFBZ0IsQ0FBQyxFQUFFLENBQUMsR0FBRyxFQUFFLEVBQUUsQ0FBQyxFQUFFLEVBQUUsQ0FBQzt3QkFDbEMsS0FBSyxDQUFDLElBQUksT0FBVixLQUFLLEVBQVM7NEJBQ1YsRUFBRSxDQUFDLFlBQVk7NEJBQ2YsRUFBRSxDQUFDLGFBQWE7NEJBQ2hCLEVBQUUsQ0FBQyx5QkFBeUI7NEJBQzVCLEVBQUUsQ0FBQyw4QkFBOEI7NEJBQ2pDLEVBQUUsQ0FBQyxrQkFBa0I7NEJBQ3JCLEVBQUUsQ0FBQyxnQkFBZ0I7NEJBQ25CLEVBQUUsQ0FBQyx3QkFBd0I7NEJBQzNCLEVBQUUsQ0FBQyxtQkFBbUI7NEJBQ3RCLEVBQUUsQ0FBQyxvQkFBb0I7eUJBQzFCLEVBQUU7b0JBRVAsQ0FBQztvQkFDRCxLQUFLLENBQUMsSUFBSSxDQUFDLEVBQUUsQ0FBQyxXQUFXLENBQUMsQ0FBQzs7Ozt3QkFHVixDQUFDOzs7eUJBQUUsQ0FBQSxDQUFDLEdBQUcsS0FBSyxDQUFDLE1BQU0sQ0FBQTtvQkFDNUIscUJBQU0sRUFBRSxDQUFDLEdBQUcsQ0FBQyxLQUFLLENBQUMsQ0FBQyxDQUFDLENBQUMsRUFBQTs7b0JBQXRCLFNBQXNCLENBQUM7OztvQkFETyxDQUFDLEVBQUUsQ0FBQTs7Ozs7b0JBSXJDLE9BQU8sQ0FBQyxLQUFLLENBQUMsSUFBRSxDQUFDLENBQUM7Ozs7O1NBR3pCLENBQUM7SUFDRixRQUFRLEVBQUUsQ0FBQztBQUVmLENBQUMifQ==

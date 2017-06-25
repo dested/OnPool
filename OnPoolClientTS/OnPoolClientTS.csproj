@@ -22,10 +22,10 @@
     <Service Include="{4A0DDDB5-7A95-4FBF-97CC-616D07737A77}" />
   </ItemGroup>
   <ItemGroup>
-    <TypeScriptCompile Include="src\clientBrokerManager.ts" />
+    <TypeScriptCompile Include="src\onPoolClient.ts" />
     <TypeScriptCompile Include="src\app.ts" />
     <TypeScriptCompile Include="src\common\query.ts" />
-    <TypeScriptCompile Include="src\common\socketLayer.ts" />
+    <TypeScriptCompile Include="src\common\socketManager.ts" />
     <TypeScriptCompile Include="src\common\utils.ts" />
     <TypeScriptCompile Include="src\node_modules\%40types\node\index.d.ts" />
     <TypeScriptCompile Include="src\tests.ts" />
@@ -34,10 +34,7 @@
     <Content Include="tsconfig.json" />
   </ItemGroup>
   <ItemGroup>
-    <TypeScriptCompile Include="src\clientPool.ts" />
-  </ItemGroup>
-  <ItemGroup>
-    <TypeScriptCompile Include="src\swimmer.ts" />
+    <TypeScriptCompile Include="src\pool.ts" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="src\node_modules\%40types\node\LICENSE" />

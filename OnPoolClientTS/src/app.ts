@@ -1,19 +1,33 @@
-﻿import {ClientBrokerManager} from "./clientBrokerManager";
-import {Query, QueryParam} from "./common/query";
-import {Tests} from "./tests";
-
+﻿import { Tests } from "./tests";
 
 let shouldRunTests = true;
 
 if (shouldRunTests) {
     let runTests = async () => {
-        var tests = new Tests();
+        const tc = new Tests();
+
+
+        const tests: ((success: () => void, fail: (reason: string) => void) => void)[] = [];
+        for (let i: number = 0; i < 10; i++) {
+            tests.push(...[
+                tc.TestEveryone,
+                tc.TestLeavePool,
+                tc.TestOnPoolUpdatedResponse,
+                tc.TestOnPoolDisconnectedResponse,
+                tc.TestClientResponse,
+                tc.TestPoolResponse,
+                tc.TestDirectClientResponse,
+                tc.TestAllPoolResponse,
+                tc.TestClientSendObject
+            ]);
+
+        }
+        tests.push(tc.TestSlammer);
+
         try {
-       // await tests.run(tests.TestSwimmerResponse);
-       // await tests.run(tests.TestPoolResponse);
-       // await tests.run(tests.TestAllPoolResponse);
-       // await tests.run(tests.Test100ClientsAll);
-           await tests.run(tests.TestSlammer);
+            for (let j = 0; j < tests.length; j++) {
+                await tc.run(tests[j]);
+            }
         } catch (ex) {
             console.error(ex);
         }
@@ -21,44 +35,6 @@ if (shouldRunTests) {
     };
     runTests();
 
-} else {
-    let c = new ClientBrokerManager();
-    c.ConnectToBroker("127.0.0.1");
-    c.OnDisconnect(() => {
-    });
-    c.OnMessage((from,message) => {
-        console.log(message.ToString());
-    });
-
-    c.OnMessageWithResponse((from,message, respond) => {
-        console.log(message.ToString());
-        respond(Query.BuildWithJson("Baz", 12));
-    });
-
-    c.OnReady(() => {
-        c.GetPool("GameServers",
-            pool => {
-                pool.OnMessage((from,message) => {
-                    console.log(message.ToString());
-                });
-                pool.OnMessageWithResponse((from,message, respond) => {
-                    console.log(message.ToString());
-                    respond(Query.BuildWithJson("Baz", 12));
-                });
-
-                pool.JoinPool(() => {
-                    pool.SendMessage(Query.Build("CreateGame", new QueryParam("Name", "B")));
-                    pool.SendAllMessage(Query.Build("WakeUp"));
-
-                    pool.SendMessageWithResponse(Query.Build("CreateName"), (message) => {
-                    });
-                    pool.SendAllMessageWithResponse(Query.Build("WakeUp"), (message) => {
-                    });
-                });
-            });
-
-    });
-
-}
+} 
 
 

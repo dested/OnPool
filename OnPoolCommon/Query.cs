@@ -6,7 +6,7 @@ using System.Text;
 
 namespace OnPoolCommon
 {
-    //    [DebuggerStepThrough]
+//    [DebuggerStepThrough]
     public class Query
     {
         public string To { get; set; }
@@ -27,6 +27,7 @@ namespace OnPoolCommon
         {
             return QueryParams.Any(a => a.Key == key);
         }
+
         public string Get(string key)
         {
             return QueryParams.FirstOrDefault(a => a.Key == key)?.Value;
@@ -37,6 +38,7 @@ namespace OnPoolCommon
             QueryParams.Add(new QueryParam(key, value));
             return this;
         }
+
         public Query AddJson<T>(T obj)
         {
             QueryParams.Add(new QueryParam("Json", obj.ToJson()));
@@ -59,7 +61,8 @@ namespace OnPoolCommon
             sb.Append("|");
             sb.Append(Method);
             sb.Append("?");
-            foreach (var query in QueryParams) {
+            foreach (var query in QueryParams)
+            {
                 sb.Append(query.Key);
                 sb.Append("=");
                 sb.Append(Uri.EscapeDataString(query.Value));
@@ -67,28 +70,31 @@ namespace OnPoolCommon
             }
 
             var bytes = new byte[sb.Length + 3 + 1];
-            bytes[0] = (byte)Direction;
-            bytes[1] = (byte)Type;
-            bytes[2] = (byte)ResponseOptions;
-            Encoding.UTF8.GetBytes(sb + "\0", 0, sb.Length + 1, bytes, 3);
+            bytes[0] = (byte) Direction;
+            bytes[1] = (byte) Type;
+            bytes[2] = (byte) ResponseOptions;
+            Encoding.UTF8.GetBytes(sb.ToString(), 0, sb.Length , bytes, 3);
             return bytes;
         }
 
 
         public static Query Parse(byte[] continueBuffer)
         {
-            try {
-                QueryDirection direction = (QueryDirection)continueBuffer[0];
-                QueryType type = (QueryType)continueBuffer[1];
-                ResponseOptions responseOptions = (ResponseOptions)continueBuffer[2];
+            try
+            {
+                QueryDirection direction = (QueryDirection) continueBuffer[0];
+                QueryType type = (QueryType) continueBuffer[1];
+                ResponseOptions responseOptions = (ResponseOptions) continueBuffer[2];
 
                 var pieces = Encoding.UTF8.GetString(continueBuffer, 3, continueBuffer.Length - 3).Split('|');
-                var messageSplit = pieces[3].Split(new[] { '?' }, StringSplitOptions.RemoveEmptyEntries);
+                var messageSplit = pieces[3].Split(new[] {'?'}, StringSplitOptions.RemoveEmptyEntries);
 
                 var qparams = new List<QueryParam>();
-                if (messageSplit.Length == 2) {
-                    var split = messageSplit[1].Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var s in split) {
+                if (messageSplit.Length == 2)
+                {
+                    var split = messageSplit[1].Split(new[] {'&'}, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var s in split)
+                    {
                         var querySplit = s.Split('=');
                         qparams.Add(new QueryParam(querySplit[0], Uri.UnescapeDataString(querySplit[1])));
                     }
@@ -108,7 +114,8 @@ namespace OnPoolCommon
 
                 return query;
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 Console.WriteLine("Failed Receive message:");
                 Console.WriteLine($"{Encoding.UTF8.GetString(continueBuffer)}");
                 Console.WriteLine($"{ex}");
@@ -123,7 +130,8 @@ namespace OnPoolCommon
 
             sb.Append(Method);
             sb.Append("?");
-            foreach (var query in QueryParams) {
+            foreach (var query in QueryParams)
+            {
                 sb.Append(query.Key);
                 sb.Append("=");
                 sb.Append(Uri.EscapeDataString(query.Value));
@@ -154,23 +162,24 @@ namespace OnPoolCommon
 
         public static Query BuildServerRequest(string method, ResponseOptions options = ResponseOptions.SingleResponse)
         {
-            return new Query() {
+            return new Query()
+            {
                 Method = method,
                 Direction = QueryDirection.Request,
                 Type = QueryType.Server,
                 ResponseOptions = options
             };
-
         }
+
         public static Query BuildServerResponse(string method, ResponseOptions options = ResponseOptions.SingleResponse)
         {
-            return new Query() {
+            return new Query()
+            {
                 Method = method,
                 Direction = QueryDirection.Response,
                 Type = QueryType.Client,
                 ResponseOptions = options
             };
-
         }
     }
 
@@ -186,16 +195,19 @@ namespace OnPoolCommon
         public string Key { get; set; }
         public string Value { get; set; }
     }
+
     public enum ResponseOptions
     {
         SingleResponse = 1,
         OpenResponse = 2
     }
+
     public enum QueryDirection
     {
         Request = 1,
         Response = 2
     }
+
     public enum QueryType
     {
         Client = 1,

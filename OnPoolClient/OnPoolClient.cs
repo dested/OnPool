@@ -13,7 +13,7 @@ namespace OnPoolClient
 
     public class OnPoolClient
     {
-        private SocketManager server;
+        private SocketManager socketManager;
 
         private readonly Dictionary<string, Action<Query>> messageResponses = new Dictionary<string, Action<Query>>();
         private readonly Dictionary<string, int> poolAllCounter = new Dictionary<string, int>();
@@ -24,16 +24,16 @@ namespace OnPoolClient
         private Action onDisconnect;
         private OnMessage onMessage;
 
-        public string MyClientId => server.Id;
+        public string MyClientId => socketManager.Id;
 
         public void ConnectToServer(string ip)
         {
-            server = new SocketManager("127.0.0.1");
-            server.onReceive += (_, query) => messageProcess(query);
-            server.OnDisconnect += _ => onDisconnect?.Invoke();
-            server.StartFromClient();
+            socketManager = new SocketManager("127.0.0.1");
+            socketManager.onReceive += (_, query) => messageProcess(query);
+            socketManager.OnDisconnect += _ => onDisconnect?.Invoke();
+            socketManager.StartFromClient();
             GetClientId(id => {
-                server.Id = id;
+                socketManager.Id = id;
                 onReady?.Invoke();
             });
         }
@@ -44,7 +44,7 @@ namespace OnPoolClient
             if (message.From != null)
                 fromClient = GetClientById(message.From);
             else
-                fromClient = GetClientById(server.Id);
+                fromClient = GetClientById(socketManager.Id);
 
             switch (message.Direction)
             {
@@ -63,7 +63,7 @@ namespace OnPoolClient
                         {
                             q.Add("~PoolAllCount~", message.Get("~PoolAllCount~"));
                         }
-                        server.SendMessage(q);
+                        socketManager.SendMessage(q);
                     });
                     break;
                 case QueryDirection.Response:
@@ -211,8 +211,6 @@ namespace OnPoolClient
                 ResponseOptions = responseOptions
             };
             query.AddJson(payload);
-            query.Type = QueryType.Client;
-            query.To = clientId;
             sendMessage(query, callback);
         }
 
@@ -260,9 +258,9 @@ namespace OnPoolClient
             this.SendAllPoolMessage<object>(poolName,method,payload,null,responseOptions);
         }
 
-        public void Disconnet()
+        public void Disconnect()
         {
-            server.ForceDisconnect();
+            socketManager.ForceDisconnect();
         }
 
         internal bool sendMessage<T>(Query query, Action<T> callback = null)
@@ -271,9 +269,9 @@ namespace OnPoolClient
             query.RequestKey = responseKey;
             messageResponses[responseKey] = (payload) => { callback?.Invoke(payload.GetJson<T>()); };
 
-            if (server.Id != null && query.From == null)
-                query.From = server.Id;
-            return server.SendMessage(query);
+            if (socketManager.Id != null && query.From == null)
+                query.From = socketManager.Id;
+            return socketManager.SendMessage(query);
         }
     }
 }
