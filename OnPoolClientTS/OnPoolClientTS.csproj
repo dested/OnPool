@@ -24,7 +24,7 @@
   <ItemGroup>
     <TypeScriptCompile Include="src\onPoolClient.ts" />
     <TypeScriptCompile Include="src\app.ts" />
-    <TypeScriptCompile Include="src\common\query.ts" />
+    <TypeScriptCompile Include="src\common\message.ts" />
     <TypeScriptCompile Include="src\common\socketManager.ts" />
     <TypeScriptCompile Include="src\common\utils.ts" />
     <TypeScriptCompile Include="src\node_modules\%40types\node\index.d.ts" />

@@ -18,7 +18,7 @@ namespace OnPoolCommon
         private Socket socket;
 
         public static int Counter;
-        public Action<SocketManager, Query> onReceive;
+        public Action<SocketManager, Message> onReceive;
         public string Id { get; set; }
         public Action<SocketManager> OnDisconnect { get; set; }
 
@@ -61,11 +61,11 @@ namespace OnPoolCommon
                 Counter++;
                 switch (response.Result) {
                     case WorkerResult.Message:
-                        var query = Query.Parse(response.Query);
+                        var message = Message.Parse(response.Message);
 #if DUMP
-                        Console.WriteLine(query);
+                        Console.WriteLine(message);
 #endif
-                        onReceive(this, query);
+                        onReceive(this, message);
                         break;
                     case WorkerResult.Disconnect:
                         Disconnect();
@@ -100,7 +100,7 @@ namespace OnPoolCommon
 #endif
         }
 
-        public bool SendMessage(Query message)
+        public bool SendMessage(Message message)
         {
 #if DUMP
             Console.WriteLine("Send " + message);
@@ -155,7 +155,7 @@ namespace OnPoolCommon
 
 
                             if (b == 0) {
-                                var response = WorkerResponse.FromQuery(continueBuffer, bufferIndex);
+                                var response = WorkerResponse.FromMessage(continueBuffer, bufferIndex);
                                 if (response != null)
                                     worker.SendResponse(response);
                                 bufferIndex = 0;

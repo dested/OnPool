@@ -12,7 +12,7 @@ namespace OnPoolServer
         private readonly List<Pool> pools = new List<Pool>();
         private readonly ClientListener serverManager;
 
-        private readonly Dictionary<string, Dictionary<string, Action<Query>>> messageResponses = new Dictionary<string, Dictionary<string, Action<Query>>>();
+        private readonly Dictionary<string, Dictionary<string, Action<Message>>> messageResponses = new Dictionary<string, Dictionary<string, Action<Message>>>();
         private readonly Dictionary<string, Dictionary<string, int>> poolAllCounter = new Dictionary<string, Dictionary<string, int>>();
 
         public OnPoolServer()
@@ -31,21 +31,21 @@ namespace OnPoolServer
             threadManager.Process();
         }
 
-        private void onMessage(SocketManager socketManager, Query message)
+        private void onMessage(SocketManager socketManager, Message message)
         {
             Client fromClient = GetClient(socketManager.Id);
 
 
             switch (message.Direction)
             {
-                case QueryDirection.Request:
+                case MessageDirection.Request:
 
                     var receiptId = message.RequestKey;
-                    ClientMessage(fromClient, message, queryResponse =>
+                    ClientMessage(fromClient, message, messageResponse =>
                     {
-                        var q = new Query();
+                        var q = new Message();
                         q.Method = message.Method;
-                        q.Direction = QueryDirection.Response;
+                        q.Direction = MessageDirection.Response;
                         q.Type = message.Type;
                         q.ResponseOptions = message.ResponseOptions;
                         q.To = fromClient.Id;
@@ -54,13 +54,13 @@ namespace OnPoolServer
                         {
                             q.PoolAllCount = message.PoolAllCount;
                         }
-                        q.AddJson(queryResponse);
+                        q.AddJson(messageResponse);
                         socketManager.SendMessage(q);
                     }
                     );
 
                     break;
-                case QueryDirection.Response: 
+                case MessageDirection.Response: 
                     var clientMessageResponses = ClientMessageResponses(socketManager.Id);
                     if (clientMessageResponses.ContainsKey(message.RequestKey))
                     {
@@ -100,12 +100,12 @@ namespace OnPoolServer
             }
         }
 
-        private Dictionary<string, Action<Query>> ClientMessageResponses(string id)
+        private Dictionary<string, Action<Message>> ClientMessageResponses(string id)
         {
-            Dictionary<string, Action<Query>> result;
+            Dictionary<string, Action<Message>> result;
             if (!messageResponses.TryGetValue(id, out result))
             {
-                messageResponses[id] = result = new Dictionary<string, Action<Query>>();
+                messageResponses[id] = result = new Dictionary<string, Action<Message>>();
             }
             return result;
         }
@@ -119,21 +119,21 @@ namespace OnPoolServer
             return result;
         }
 
-        private void ClientMessage(Client client, Query query, Action<object> respond)
+        private void ClientMessage(Client client, Message message, Action<object> respond)
         {
-            switch (query.Type)
+            switch (message.Type)
             {
-                case QueryType.Client:
-                    ForwardMessageToClient(query, respond);
+                case MessageType.Client:
+                    ForwardMessageToClient(message, respond);
                     break;
-                case QueryType.Pool:
-                    ForwardMessageToPool(query, respond);
+                case MessageType.Pool:
+                    ForwardMessageToPool(message, respond);
                     break;
-                case QueryType.PoolAll:
-                    ForwardMessageToPoolAll(query, respond);
+                case MessageType.PoolAll:
+                    ForwardMessageToPoolAll(message, respond);
                     break;
-                case QueryType.Server:
-                    switch (query.Method)
+                case MessageType.Server:
+                    switch (message.Method)
                     {
                         case "GetClientId":
                             {
@@ -150,7 +150,7 @@ namespace OnPoolServer
                             }
                         case "OnPoolUpdated":
                             {
-                                var poolName = query.GetJson<string>();
+                                var poolName = message.GetJson<string>();
                                 var pool = getPoolByName(poolName);
                                 pool.OnClientChange(client, () => { respond(GetClientByPool(poolName)); });
                                 respond(GetClientByPool(poolName));
@@ -159,14 +159,14 @@ namespace OnPoolServer
                             }
                         case "JoinPool":
                             {
-                                var poolName = query.GetJson<string>();
+                                var poolName = message.GetJson<string>();
                                 JoinPool(client, poolName);
                                 respond(null);
                                 break;
                             }
                         case "LeavePool":
                             {
-                                var poolName = query.GetJson<string>();
+                                var poolName = message.GetJson<string>();
                                 var pool = getPoolByName(poolName);
                                 if (pool.ContainsClient(client))
                                 {
@@ -181,15 +181,15 @@ namespace OnPoolServer
                             }
                         case "GetClients":
                             {
-                                var poolName = query.GetJson<string>();
+                                var poolName = message.GetJson<string>();
                                 respond(GetClientByPool(poolName));
                                 break;
                             }
-                        default: throw new Exception("Method not found: " + query.Method);
+                        default: throw new Exception("Method not found: " + message.Method);
                     }
                     break;
                 default:
-                    throw new Exception("Type not found " + query);
+                    throw new Exception("Type not found " + message);
             }
         }
 
@@ -244,7 +244,7 @@ namespace OnPoolServer
             pool.AddClient(client);
         }
 
-        public bool FowardMessage(SocketManager socketManager, Query message, Action<Query> callback)
+        public bool FowardMessage(SocketManager socketManager, Message message, Action<Message> callback)
         {
             if (socketManager == null)
             {
@@ -260,41 +260,41 @@ namespace OnPoolServer
             return socketManager.SendMessage(message);
         }
 
-        public void ForwardMessageToClient(Query query, Action<object> respond)
+        public void ForwardMessageToClient(Message message, Action<object> respond)
         {
-            var client = clients.FirstOrDefault(a => a.Id == query.To);
-            FowardMessage(client?.SocketManager, query, (q) => { respond(q.GetJson<object>()); });
+            var client = clients.FirstOrDefault(a => a.Id == message.To);
+            FowardMessage(client?.SocketManager, message, (q) => { respond(q.GetJson<object>()); });
         }
 
-        public void ForwardMessageToPool(Query query, Action<object> respond)
+        public void ForwardMessageToPool(Message message, Action<object> respond)
         {
-            var poolName = query.To;
+            var poolName = message.To;
             var pool = getPoolByName(poolName);
             var client = pool.GetRoundRobin();
             if (client == null)
             {
-                Console.WriteLine("No round robin found " + query);
+                Console.WriteLine("No round robin found " + message);
                 //todo idk, maybe tell the caller theres no round robin
                 return;
             }
-            FowardMessage(client.SocketManager, query, (q) => { respond(q.GetJson<object>()); });
+            FowardMessage(client.SocketManager, message, (q) => { respond(q.GetJson<object>()); });
         }
 
-        public void ForwardMessageToPoolAll(Query query, Action<object> respond)
+        public void ForwardMessageToPoolAll(Message message, Action<object> respond)
         {
-            var poolName = query.To;
+            var poolName = message.To;
             var pool = getPoolByName(poolName);
             var count = pool.NumberOfClients;
 
-            query.PoolAllCount = count;
+            message.PoolAllCount = count;
 
             foreach (var socket in pool.GetClientsSockets())
             {
-                FowardMessage(socket, query, (q) => { respond(q.GetJson<object>()); });
+                FowardMessage(socket, message, (q) => { respond(q.GetJson<object>()); });
             }
         }
 
-        public bool SendMessage(SocketManager socketManager, Query message, Action<Query> callback)
+        public bool SendMessage(SocketManager socketManager, Message message, Action<Message> callback)
         {
             ClientMessageResponses(socketManager.Id)[message.RequestKey] = callback;
 

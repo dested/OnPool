@@ -1,11 +1,11 @@
-﻿import { Query,  QueryDirection, ResponseOptions, QueryType } from "./common/query";
+﻿import { Message,  MessageDirection, ResponseOptions, MessageType } from "./common/Message";
 import { Client, Pool } from "./pool";
 import { GetAllPoolsResponse } from "./models/GetAllPoolsResponse";
 import { SocketManager } from "./common/socketManager";
 import { GetClientByPoolResponse } from "./models/GetClientByPoolResponse";
 import { Utils } from "./common/utils";
 export type RespondMessage = (payload: any) => void;
-export type OnMessage = (from: Client, message: Query, respond: RespondMessage) => void;
+export type OnMessage = (from: Client, message: Message, respond: RespondMessage) => void;
 
 export class OnPoolClient {
     private pools: Pool[] = [];
@@ -16,7 +16,7 @@ export class OnPoolClient {
         return this.socketManager.Id;
     }
     poolAllCounter: { [key: string]: number } = {};
-    messageResponses: { [key: string]: (query: Query) => void } = {};
+    messageResponses: { [key: string]: (message: Message) => void } = {};
 
 
     private onReady: (() => void)[] = [];
@@ -25,7 +25,7 @@ export class OnPoolClient {
 
     public ConnectToServer(ip: string): void {
         this.socketManager = new SocketManager(ip);
-        this.socketManager.onReceive = (from, query) => this.messageProcess(query);
+        this.socketManager.onReceive = (from, message) => this.messageProcess(message);
         this.socketManager.OnDisconnect.push(_ => this.invokeDisconnect());
         this.socketManager.StartFromClient();
         this.GetClientId((id) => {
@@ -34,20 +34,20 @@ export class OnPoolClient {
         });
     }
 
-    private messageProcess(message: Query): void {
+    private messageProcess(message: Message): void {
         let fromClient: Client;
         if (message.From != null)
             fromClient = this.GetClientById(message.From);
         else fromClient = this.GetClientById(this.socketManager.Id);
         switch (message.Direction) {
-            case QueryDirection.Request:
+            case MessageDirection.Request:
                 const receiptId = message.RequestKey;
-                this.onReceiveMessage(fromClient, message, queryResponse => {
-                    const q = new Query();
+                this.onReceiveMessage(fromClient, message, messageResponse => {
+                    const q = new Message();
                     q.Method = message.Method;
-                    q.Direction = QueryDirection.Response;
+                    q.Direction = MessageDirection.Response;
                     q.Type = message.Type;
-                    q.AddJson(queryResponse);
+                    q.AddJson(messageResponse);
                     q.ResponseOptions = message.ResponseOptions;
                     q.To = fromClient.Id;
                     q.RequestKey = receiptId;
@@ -57,7 +57,7 @@ export class OnPoolClient {
                     this.socketManager.SendMessage(q);
                 });
                 break;
-            case QueryDirection.Response:
+            case MessageDirection.Response:
                 if (this.messageResponses[message.RequestKey]) {
                     const callback = this.messageResponses[message.RequestKey];
                     if (message.ResponseOptions === ResponseOptions.SingleResponse) {
@@ -86,26 +86,26 @@ export class OnPoolClient {
     }
 
 
-    private onReceiveMessage(from: Client, query: Query, respond: RespondMessage): void {
-        switch (query.Type) {
-            case QueryType.Client:
-                this.invokeMessage(from, query, respond);
+    private onReceiveMessage(from: Client, message: Message, respond: RespondMessage): void {
+        switch (message.Type) {
+            case MessageType.Client:
+                this.invokeMessage(from, message, respond);
                 return;
-            case QueryType.Pool:
+            case MessageType.Pool:
                 {
-                    let pool = this.pools.filter(a => a.PoolName === query.To)[0];
+                    let pool = this.pools.filter(a => a.PoolName === message.To)[0];
 
-                    pool && pool.ReceiveMessage(from, query, respond);
+                    pool && pool.ReceiveMessage(from, message, respond);
                     return;
                 }
-            case QueryType.PoolAll:
+            case MessageType.PoolAll:
                 {
-                    let pool = this.pools.filter(a => a.PoolName === query.To)[0];
-                    pool && pool.ReceiveMessage(from, query, respond);
+                    let pool = this.pools.filter(a => a.PoolName === message.To)[0];
+                    pool && pool.ReceiveMessage(from, message, respond);
                 }
                 break;
             default:
-                throw "Type not found: " + query;
+                throw "Type not found: " + message;
         }
     }
     private GetClientById(id: string): Client {
@@ -126,25 +126,25 @@ export class OnPoolClient {
         this.onMessage.push(callback);
     }
     public GetClientId(callback: (_: string) => void): void {
-        const query = Query.BuildServerRequest("GetClientId");
-        this.sendMessage(query, callback);
+        const message = Message.BuildServerRequest("GetClientId");
+        this.sendMessage(message, callback);
     }
     public GetAllPools(poolName: string, callback: (_: GetAllPoolsResponse) => void): void {
-        const query = Query.BuildServerRequest("GetAllPools");
-        this.sendMessage(query, callback);
+        const message = Message.BuildServerRequest("GetAllPools");
+        this.sendMessage(message, callback);
     }
     public OnPoolUpdated(poolName: string, callback: (_: Client[]) => void): void {
-        const query = Query.BuildServerRequest("OnPoolUpdated", ResponseOptions.OpenResponse);
-        query.AddJson(poolName);
-        this.sendMessage<GetClientByPoolResponse>(query,
+        const message = Message.BuildServerRequest("OnPoolUpdated", ResponseOptions.OpenResponse);
+        message.AddJson(poolName);
+        this.sendMessage<GetClientByPoolResponse>(message,
             response => {
                 callback(response.Clients.map(a => this.GetClientById(a.Id)));
             });
     }
     public GetClients(poolName: string, callback: (_: Client[]) => void): void {
-        const query = Query.BuildServerRequest("GetClients");
-        query.AddJson(poolName);
-        this.sendMessage<GetClientByPoolResponse>(query,
+        const message = Message.BuildServerRequest("GetClients");
+        message.AddJson(poolName);
+        this.sendMessage<GetClientByPoolResponse>(message,
             response => {
                 callback(response.Clients.map(a => this.GetClientById(a.Id)));
             });
@@ -152,15 +152,15 @@ export class OnPoolClient {
     public JoinPool(poolName: string): Pool {
         const pool = new Pool(poolName);
         this.pools.push(pool);
-        const query = Query.BuildServerRequest("JoinPool");
-        query.AddJson(poolName);
-        this.sendMessage<Object>(query);
+        const message = Message.BuildServerRequest("JoinPool");
+        message.AddJson(poolName);
+        this.sendMessage<void>(message);
         return pool;
     }
     public LeavePool(poolName: string): void {
-        const query = Query.BuildServerRequest("LeavePool");
-        query.AddJson(poolName);
-        this.sendMessage<Object>(query, response => {
+        const message = Message.BuildServerRequest("LeavePool");
+        message.AddJson(poolName);
+        this.sendMessage<void>(message, response => {
             for (let i = this.pools.length - 1; i >= 0; i--) {
                 const pool = this.pools[i];
                 if (pool.PoolName === poolName) {
@@ -169,33 +169,32 @@ export class OnPoolClient {
             }
         });
     }
-    public SendClientMessage<T>(clientId: string, method: string, payload: Object, callback: (_: T) => void = null, responseOptions: ResponseOptions = ResponseOptions.SingleResponse): void {
-        const q = new Query();
+    public SendClientMessage<T>(clientId: string, method: string, payload: any, callback: (_: T) => void = null, responseOptions: ResponseOptions = ResponseOptions.SingleResponse): void {
+        const q = new Message();
         q.Method = method;
-        q.Direction = QueryDirection.Request;
-        q.Type = QueryType.Client;
+        q.Direction = MessageDirection.Request;
+        q.Type = MessageType.Client;
         q.To = clientId;
         q.ResponseOptions = responseOptions;
-        q.AddJson(payload);
-        q.Type = QueryType.Client;
+        q.AddJson(payload); 
         this.sendMessage(q, callback);
     }
-    public SendPoolMessage<T>(poolName: string, method: string, payload: Object, callback: (_: T) => void = null, responseOptions: ResponseOptions = ResponseOptions.SingleResponse): void {
+    public SendPoolMessage<T>(poolName: string, method: string, payload: any, callback: (_: T) => void = null, responseOptions: ResponseOptions = ResponseOptions.SingleResponse): void {
 
-        const q = new Query();
+        const q = new Message();
         q.Method = method;
-        q.Direction = QueryDirection.Request;
-        q.Type = QueryType.Pool;
+        q.Direction = MessageDirection.Request;
+        q.Type = MessageType.Pool;
         q.To = poolName;
         q.ResponseOptions = responseOptions;
         q.AddJson(payload);
         this.sendMessage(q, callback);
     }
-    public SendAllPoolMessage<T>(poolName: string, method: string, payload: Object, callback: (_: T) => void = null, responseOptions: ResponseOptions = ResponseOptions.SingleResponse): void {
-        const q = new Query();
+    public SendAllPoolMessage<T>(poolName: string, method: string, payload: any, callback: (_: T) => void = null, responseOptions: ResponseOptions = ResponseOptions.SingleResponse): void {
+        const q = new Message();
         q.Method = method;
-        q.Direction = QueryDirection.Request;
-        q.Type = QueryType.PoolAll;
+        q.Direction = MessageDirection.Request;
+        q.Type = MessageType.PoolAll;
         q.To = poolName;
         q.ResponseOptions = responseOptions;
         q.AddJson(payload);
@@ -206,18 +205,18 @@ export class OnPoolClient {
     public Disconnect(): void {
         this.socketManager.ForceDisconnect();
     }
-    public sendMessage<T>(query: Query, callback: (_: T) => void = null): boolean {
+    public sendMessage<T>(message: Message, callback: (_: T) => void = null): boolean {
         const responseKey = Utils.guid();
-        query.RequestKey = responseKey;
+        message.RequestKey = responseKey;
         this.messageResponses[responseKey] = (payload) => {
             callback && callback(payload.GetJson<T>());
         };
-        if (this.socketManager.Id != null && query.From == null)
-            query.From = this.socketManager.Id;
-        return this.socketManager.SendMessage(query);
+        if (this.socketManager.Id != null && message.From == null)
+            message.From = this.socketManager.Id;
+        return this.socketManager.SendMessage(message);
     }
 
-    private invokeMessage(from: Client, message: Query, respond: RespondMessage) {
+    private invokeMessage(from: Client, message: Message, respond: RespondMessage) {
         for (let i = 0; i < this.onMessage.length; i++) {
             this.onMessage[i](from, message, respond);
         }

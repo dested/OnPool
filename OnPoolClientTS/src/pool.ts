@@ -1,4 +1,4 @@
-﻿import { Query } from "./common/query";
+﻿import { Message } from "./common/Message";
 import { OnMessage, RespondMessage } from "./onPoolClient";
 
 export class Pool {
@@ -9,17 +9,17 @@ export class Pool {
         this.PoolName = poolName;
     }
 
-    public ReceiveMessage(from: Client, query: Query, respond: RespondMessage): void {
-        this.invokeMessage(from, query, respond);
+    public ReceiveMessage(from: Client, message: Message, respond: RespondMessage): void {
+        this.invokeMessage(from, message, respond);
     }
 
     public OnMessage(callback: OnMessage): void {
         this.onMessage.push(callback);
     }
 
-    public invokeMessage(from: Client, query: Query, respond: RespondMessage) {
+    public invokeMessage(from: Client, message: Message, respond: RespondMessage) {
         for (let i = 0; i < this.onMessage.length; i++) {
-            this.onMessage[i](from, query, respond);
+            this.onMessage[i](from, message, respond);
         }
     }
 

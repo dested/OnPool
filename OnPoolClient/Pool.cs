@@ -16,9 +16,9 @@ namespace OnPoolClient
             PoolName = poolName;
         }
 
-        public void ReceiveMessage(Client from, Query query, RespondMessage respond)
+        public void ReceiveMessage(Client from, Message message, RespondMessage respond)
         {
-            onMessage?.Invoke(from, query, respond);
+            onMessage?.Invoke(from, message, respond);
         }
 
         public void OnMessage(OnMessage callback)

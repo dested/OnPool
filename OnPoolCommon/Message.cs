@@ -7,23 +7,23 @@ using System.Text;
 namespace OnPoolCommon
 {
     //    [DebuggerStepThrough]
-    public class Query
+    public class Message
     {
         public string To { get; set; }
         public string From { get; set; }
-        public QueryType Type { get; set; }
-        public QueryDirection Direction { get; set; }
+        public MessageType Type { get; set; }
+        public MessageDirection Direction { get; set; }
         public ResponseOptions ResponseOptions { get; set; }
         public string Method { get; set; }
         public string RequestKey { get; set; }
         public string Json { get; set; }
         public int PoolAllCount { get; set; } = -1;
 
-        public Query()
+        public Message()
         {
         }
 
-        public Query AddJson<T>(T obj)
+        public Message AddJson<T>(T obj)
         {
             Json = obj.ToJson();
             return this;
@@ -62,35 +62,35 @@ namespace OnPoolCommon
         }
 
 
-        public static Query Parse(byte[] continueBuffer)
+        public static Message Parse(byte[] continueBuffer)
         {
             try
             {
                 var pieces = Encoding.UTF8.GetString(continueBuffer, 3, continueBuffer.Length - 3).Split('|');
-                var query = new Query();
+                var message = new Message();
 
                 if (!string.IsNullOrWhiteSpace(pieces[0]))
-                    query.To = pieces[0];
+                    message.To = pieces[0];
 
                 if (!string.IsNullOrWhiteSpace(pieces[1]))
-                    query.From = pieces[1];
+                    message.From = pieces[1];
 
                 if (!string.IsNullOrWhiteSpace(pieces[2]))
-                    query.RequestKey = pieces[2];
+                    message.RequestKey = pieces[2];
 
-                query.Method = pieces[3];
+                message.Method = pieces[3];
 
                 if (!string.IsNullOrWhiteSpace(pieces[4]))
-                    query.Json = pieces[4].Replace("%`%","|");
+                    message.Json = pieces[4].Replace("%`%","|");
 
                 if (!string.IsNullOrWhiteSpace(pieces[5]))
-                    query.PoolAllCount = int.Parse(pieces[5]);
+                    message.PoolAllCount = int.Parse(pieces[5]);
 
-                query.Direction = (QueryDirection)continueBuffer[0];
-                query.Type = (QueryType)continueBuffer[1];
-                query.ResponseOptions = (ResponseOptions)continueBuffer[2];
+                message.Direction = (MessageDirection)continueBuffer[0];
+                message.Type = (MessageType)continueBuffer[1];
+                message.ResponseOptions = (ResponseOptions)continueBuffer[2];
 
-                return query;
+                return message;
             }
             catch (Exception ex)
             {
@@ -130,24 +130,24 @@ namespace OnPoolCommon
             return default(T);
         }
 
-        public static Query BuildServerRequest(string method, ResponseOptions options = ResponseOptions.SingleResponse)
+        public static Message BuildServerRequest(string method, ResponseOptions options = ResponseOptions.SingleResponse)
         {
-            return new Query()
+            return new Message()
             {
                 Method = method,
-                Direction = QueryDirection.Request,
-                Type = QueryType.Server,
+                Direction = MessageDirection.Request,
+                Type = MessageType.Server,
                 ResponseOptions = options
             };
         }
 
-        public static Query BuildServerResponse(string method, ResponseOptions options = ResponseOptions.SingleResponse)
+        public static Message BuildServerResponse(string method, ResponseOptions options = ResponseOptions.SingleResponse)
         {
-            return new Query()
+            return new Message()
             {
                 Method = method,
-                Direction = QueryDirection.Response,
-                Type = QueryType.Client,
+                Direction = MessageDirection.Response,
+                Type = MessageType.Client,
                 ResponseOptions = options
             };
         }
@@ -160,13 +160,13 @@ namespace OnPoolCommon
         OpenResponse = 2
     }
 
-    public enum QueryDirection
+    public enum MessageDirection
     {
         Request = 1,
         Response = 2
     }
 
-    public enum QueryType
+    public enum MessageType
     {
         Client = 1,
         Pool = 2,

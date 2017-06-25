@@ -1,8 +1,8 @@
-﻿export class Query {
+﻿export class Message {
     public To: string;
     public From: string;
-    public Type: QueryType;
-    public Direction: QueryDirection;
+    public Type: MessageType;
+    public Direction: MessageDirection;
     public ResponseOptions: ResponseOptions;
     public Method: string;
     public RequestKey: string;
@@ -13,7 +13,7 @@
     }
 
 
-    public AddJson<T>(obj: T): Query {
+    public AddJson<T>(obj: T): Message {
         this.Json = JSON.stringify(obj);
         return this;
     }
@@ -53,31 +53,31 @@
         return bytes;
     }
 
-    public static Parse(continueBuffer: Uint8Array): Query {
+    public static Parse(continueBuffer: Uint8Array): Message {
         try {
-            const query = new Query();
+            const message = new Message();
 
-            query.Direction = <QueryDirection>continueBuffer[0];
-            query.Type = <QueryType>continueBuffer[1];
-            query.ResponseOptions = <ResponseOptions>continueBuffer[2];
+            message.Direction = <MessageDirection>continueBuffer[0];
+            message.Type = <MessageType>continueBuffer[1];
+            message.ResponseOptions = <ResponseOptions>continueBuffer[2];
             const pieces = new Buffer(continueBuffer.slice(3)).toString("utf8").split('|');
 
 
             if (pieces[0])
-                query.To = pieces[0];
+                message.To = pieces[0];
             if (pieces[1])
-                query.From = pieces[1];
+                message.From = pieces[1];
             if (pieces[2])
-                query.RequestKey = pieces[2];
-            query.Method = pieces[3];
+                message.RequestKey = pieces[2];
+            message.Method = pieces[3];
             if (pieces[4]) {
-                query.Json = pieces[4].replace(/%`%/g, '|');
+                message.Json = pieces[4].replace(/%`%/g, '|');
             }
             if (pieces[5]) {
-                query.PoolAllCount = parseInt(pieces[5]);
+                message.PoolAllCount = parseInt(pieces[5]);
             }
 
-            return query;
+            return message;
         } catch (ex) {
             console.log("Failed Receive message:");
             console.log(`${new Buffer(continueBuffer).toString("utf8")}`);
@@ -87,11 +87,11 @@
 
     }
 
-    public static BuildServerRequest(method: string, options: ResponseOptions = ResponseOptions.SingleResponse): Query {
-        let q = new Query();
+    public static BuildServerRequest(method: string, options: ResponseOptions = ResponseOptions.SingleResponse): Message {
+        let q = new Message();
         q.Method = method;
-        q.Direction = QueryDirection.Request;
-        q.Type = QueryType.Server;
+        q.Direction = MessageDirection.Request;
+        q.Type = MessageType.Server;
         q.ResponseOptions = options;
         return q;
     }
@@ -128,12 +128,12 @@ export enum ResponseOptions {
     OpenResponse = 2
 }
 
-export enum QueryDirection {
+export enum MessageDirection {
     Request = 1,
     Response = 2
 }
 
-export enum QueryType {
+export enum MessageType {
     Client = 1,
     Pool = 2,
     PoolAll = 3,

@@ -1,4 +1,4 @@
-﻿import { Query } from "./query";
+﻿import { Message } from "./Message";
 import * as net from "net";
 import { Utils } from "./utils";
 
@@ -9,7 +9,7 @@ export class SocketManager {
     private serverIp: string;
     socket: net.Socket;
     public OnDisconnect: ((socket: SocketManager) => void)[] = [];
-    public onReceive: ((socket: SocketManager, query: Query) => void);
+    public onReceive: ((socket: SocketManager, message: Message) => void);
 
     constructor(serverIp: string) {
         this.serverIp = serverIp;
@@ -31,7 +31,7 @@ export class SocketManager {
                 for (let j = 0; j < bytes.length; j++) {
                     let b = bytes[j];
                     if (b === 0) {
-                        this.onReceive(this, Query.Parse(continueBuffer.slice(0, bufferIndex)));
+                        this.onReceive(this, Message.Parse(continueBuffer.slice(0, bufferIndex)));
                         bufferIndex = 0;
                     } else {
                         continueBuffer[bufferIndex++] = b;
@@ -45,7 +45,7 @@ export class SocketManager {
             });
     }
 
-    public SendMessage(message: Query): boolean {
+    public SendMessage(message: Message): boolean {
         if (this.socket.destroyed) {
             this.Disconnect();
             return false;

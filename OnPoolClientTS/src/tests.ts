@@ -1,5 +1,5 @@
 ﻿
-import { Query } from "./common/query";
+import { Message } from "./common/Message";
 import { OnPoolClient } from "./onPoolClient";
 import { Utils } from "./common/utils";
 
