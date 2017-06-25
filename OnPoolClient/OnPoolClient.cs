@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 using OnPoolCommon;
 using OnPoolCommon.Models;
 
@@ -25,10 +26,14 @@ namespace OnPoolClient
         private OnMessage onMessage;
 
         public string MyClientId => socketManager.Id;
+        public void SetSerializerSettings(JsonSerializerSettings settings)
+        {
+            JsonExtensions.SetSerializerSettings(settings);
+        }
 
         public void ConnectToServer(string ip)
         {
-            socketManager = new SocketManager("127.0.0.1");
+            socketManager = new SocketManager(ip);
             socketManager.onReceive += (_, query) => messageProcess(query);
             socketManager.OnDisconnect += _ => onDisconnect?.Invoke();
             socketManager.StartFromClient();
@@ -59,9 +64,9 @@ namespace OnPoolClient
                         q.ResponseOptions = message.ResponseOptions;
                         q.To = fromClient.Id;
                         q.RequestKey = receiptId;
-                        if (message.Contains("~PoolAllCount~"))
+                        if (message.PoolAllCount!=-1)
                         {
-                            q.Add("~PoolAllCount~", message.Get("~PoolAllCount~"));
+                            q.PoolAllCount = message.PoolAllCount;
                         }
                         socketManager.SendMessage(q);
                     });
@@ -73,14 +78,14 @@ namespace OnPoolClient
                         var callback = messageResponses[message.RequestKey];
                         if (message.ResponseOptions == ResponseOptions.SingleResponse)
                         {
-                            if (message.Contains("~PoolAllCount~"))
+                            if (message.PoolAllCount != -1)
                             {
                                 if (!poolAllCounter.ContainsKey(message.RequestKey))
                                     poolAllCounter[message.RequestKey] = 1;
                                 else
                                     poolAllCounter[message.RequestKey] = poolAllCounter[message.RequestKey] + 1;
 
-                                if (poolAllCounter[message.RequestKey] == int.Parse(message.Get("~PoolAllCount~")))
+                                if (poolAllCounter[message.RequestKey] == message.PoolAllCount)
                                 {
                                     messageResponses.Remove(message.RequestKey);
                                     poolAllCounter.Remove(message.RequestKey);
@@ -167,7 +172,7 @@ namespace OnPoolClient
         public void OnPoolUpdated(string poolName, Action<Client[]> callback)
         {
             var query = Query.BuildServerRequest("OnPoolUpdated", ResponseOptions.OpenResponse);
-            query.Add("PoolName", poolName);
+            query.AddJson(poolName);
 
             sendMessage<GetClientByPoolResponse>(query,
                 response => { callback(response.Clients.Select(a => GetClientById(a.Id)).ToArray()); });
@@ -176,7 +181,7 @@ namespace OnPoolClient
         public void GetClients(string poolName, Action<Client[]> callback)
         {
             var query = Query.BuildServerRequest("GetClients");
-            query.Add("PoolName", poolName);
+            query.AddJson(poolName);
 
             sendMessage<GetClientByPoolResponse>(query,
                 response => { callback(response.Clients.Select(a => GetClientById(a.Id)).ToArray()); });
@@ -188,7 +193,7 @@ namespace OnPoolClient
             this.pools.Add(pool);
 
             var query = Query.BuildServerRequest("JoinPool");
-            query.Add("PoolName", poolName);
+            query.AddJson(poolName);
 
             sendMessage<object>(query);
             return pool;
@@ -197,11 +202,11 @@ namespace OnPoolClient
         public void LeavePool(string poolName)
         {
             var query = Query.BuildServerRequest("LeavePool");
-            query.Add("PoolName", poolName);
+            query.AddJson(poolName);
             sendMessage<object>(query, response => { pools.RemoveAll(a => a.PoolName == poolName); });
         }
 
-        public void SendClientMessage<T>(string clientId, string method, object payload, Action<T> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        public void SendClientMessage<T>(string clientId, string method, object payload = null, Action<T> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
             var query = new Query() {
                 Method = method,
@@ -214,7 +219,7 @@ namespace OnPoolClient
             sendMessage(query, callback);
         }
 
-        public void SendPoolMessage<T>(string poolName, string method, object payload, Action<T> callback = null,
+        public void SendPoolMessage<T>(string poolName, string method, object payload = null, Action<T> callback = null,
             ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
             var query = new Query() {
@@ -228,7 +233,7 @@ namespace OnPoolClient
             sendMessage(query, callback);
         }
 
-        public void SendAllPoolMessage<T>(string poolName, string method, object payload, Action<T> callback = null,
+        public void SendAllPoolMessage<T>(string poolName, string method, object payload = null, Action<T> callback = null,
             ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
             var query = new Query() {
@@ -243,17 +248,17 @@ namespace OnPoolClient
         }
 
 
-        public void SendClientMessage(string clientId, string method, object payload, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        public void SendClientMessage(string clientId, string method, object payload = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
             this.SendClientMessage<object>(clientId, method, payload, null, responseOptions);
         }
 
-        public void SendPoolMessage(string poolName, string method, object payload, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        public void SendPoolMessage(string poolName, string method, object payload = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
             this.SendPoolMessage<object>(poolName, method, payload, null, responseOptions);
         }
 
-        public void SendAllPoolMessage(string poolName, string method, object payload, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        public void SendAllPoolMessage(string poolName, string method, object payload=null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
             this.SendAllPoolMessage<object>(poolName,method,payload,null,responseOptions);
         }

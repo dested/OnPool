@@ -39,7 +39,7 @@ namespace OnPoolCommon
         public void StartFromClient()
         {
             socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            socket.Connect(new IPEndPoint(IPAddress.Parse(serverIp), 1987));
+            socket.Connect(serverIp,1987);
             Start();
         }
 

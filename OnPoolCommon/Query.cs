@@ -6,7 +6,7 @@ using System.Text;
 
 namespace OnPoolCommon
 {
-//    [DebuggerStepThrough]
+    //    [DebuggerStepThrough]
     public class Query
     {
         public string To { get; set; }
@@ -16,40 +16,18 @@ namespace OnPoolCommon
         public ResponseOptions ResponseOptions { get; set; }
         public string Method { get; set; }
         public string RequestKey { get; set; }
-        private List<QueryParam> QueryParams { get; set; }
+        public string Json { get; set; }
+        public int PoolAllCount { get; set; } = -1;
 
         public Query()
         {
-            QueryParams = new List<QueryParam>();
-        }
-
-        public bool Contains(string key)
-        {
-            return QueryParams.Any(a => a.Key == key);
-        }
-
-        public string Get(string key)
-        {
-            return QueryParams.FirstOrDefault(a => a.Key == key)?.Value;
-        }
-
-        public Query Add(string key, string value = "")
-        {
-            QueryParams.Add(new QueryParam(key, value));
-            return this;
         }
 
         public Query AddJson<T>(T obj)
         {
-            QueryParams.Add(new QueryParam("Json", obj.ToJson()));
+            Json = obj.ToJson();
             return this;
         }
-
-        public void Remove(string key)
-        {
-            QueryParams.RemoveAll(a => a.Key == key);
-        }
-
         public byte[] GetBytes()
         {
             var sb = new StringBuilder();
@@ -60,20 +38,26 @@ namespace OnPoolCommon
             sb.Append(RequestKey);
             sb.Append("|");
             sb.Append(Method);
-            sb.Append("?");
-            foreach (var query in QueryParams)
+            sb.Append("|");
+            if (Json != null)
             {
-                sb.Append(query.Key);
-                sb.Append("=");
-                sb.Append(Uri.EscapeDataString(query.Value));
-                sb.Append("&");
+                sb.Append(Json.Replace("|","%`%"));
+            }
+            sb.Append("|");
+            if (PoolAllCount > -1)
+            {
+                sb.Append(PoolAllCount);
             }
 
             var bytes = new byte[sb.Length + 3 + 1];
-            bytes[0] = (byte) Direction;
-            bytes[1] = (byte) Type;
-            bytes[2] = (byte) ResponseOptions;
-            Encoding.UTF8.GetBytes(sb.ToString(), 0, sb.Length , bytes, 3);
+            bytes[0] = (byte)Direction;
+            bytes[1] = (byte)Type;
+            bytes[2] = (byte)ResponseOptions;
+            Encoding.UTF8.GetBytes(sb.ToString(), 0, sb.Length, bytes, 3);
+            if (bytes.Length > 1024 * 1024 * 5)
+            {
+                throw new ArgumentException("The message is longer than 5mb.");
+            }
             return bytes;
         }
 
@@ -82,35 +66,29 @@ namespace OnPoolCommon
         {
             try
             {
-                QueryDirection direction = (QueryDirection) continueBuffer[0];
-                QueryType type = (QueryType) continueBuffer[1];
-                ResponseOptions responseOptions = (ResponseOptions) continueBuffer[2];
-
                 var pieces = Encoding.UTF8.GetString(continueBuffer, 3, continueBuffer.Length - 3).Split('|');
-                var messageSplit = pieces[3].Split(new[] {'?'}, StringSplitOptions.RemoveEmptyEntries);
-
-                var qparams = new List<QueryParam>();
-                if (messageSplit.Length == 2)
-                {
-                    var split = messageSplit[1].Split(new[] {'&'}, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var s in split)
-                    {
-                        var querySplit = s.Split('=');
-                        qparams.Add(new QueryParam(querySplit[0], Uri.UnescapeDataString(querySplit[1])));
-                    }
-                }
                 var query = new Query();
-                query.Direction = direction;
-                query.Method = messageSplit[0];
-                query.Type = type;
-                query.ResponseOptions = responseOptions;
-                query.QueryParams = qparams;
+
                 if (!string.IsNullOrWhiteSpace(pieces[0]))
                     query.To = pieces[0];
+
                 if (!string.IsNullOrWhiteSpace(pieces[1]))
                     query.From = pieces[1];
+
                 if (!string.IsNullOrWhiteSpace(pieces[2]))
                     query.RequestKey = pieces[2];
+
+                query.Method = pieces[3];
+
+                if (!string.IsNullOrWhiteSpace(pieces[4]))
+                    query.Json = pieces[4].Replace("%`%","|");
+
+                if (!string.IsNullOrWhiteSpace(pieces[5]))
+                    query.PoolAllCount = int.Parse(pieces[5]);
+
+                query.Direction = (QueryDirection)continueBuffer[0];
+                query.Type = (QueryType)continueBuffer[1];
+                query.ResponseOptions = (ResponseOptions)continueBuffer[2];
 
                 return query;
             }
@@ -130,14 +108,6 @@ namespace OnPoolCommon
 
             sb.Append(Method);
             sb.Append("?");
-            foreach (var query in QueryParams)
-            {
-                sb.Append(query.Key);
-                sb.Append("=");
-                sb.Append(Uri.EscapeDataString(query.Value));
-                sb.Append("&");
-            }
-
             sb.Append(Direction);
             sb.Append("/");
             sb.Append(Type);
@@ -155,8 +125,8 @@ namespace OnPoolCommon
 
         public T GetJson<T>()
         {
-            if (Contains("Json"))
-                return Get("Json").FromJson<T>();
+            if (Json != null)
+                return Json.FromJson<T>();
             return default(T);
         }
 
@@ -183,18 +153,6 @@ namespace OnPoolCommon
         }
     }
 
-    [DebuggerStepThrough]
-    public class QueryParam
-    {
-        public QueryParam(string key, object value)
-        {
-            Key = key;
-            Value = value.ToString();
-        }
-
-        public string Key { get; set; }
-        public string Value { get; set; }
-    }
 
     public enum ResponseOptions
     {

@@ -10,7 +10,7 @@ if (shouldRunTests) {
         const tests: ((success: () => void, fail: (reason: string) => void) => void)[] = [];
         for (let i: number = 0; i < 10; i++) {
             tests.push(...[
-                tc.TestEveryone,
+//                tc.TestEveryone,
                 tc.TestLeavePool,
                 tc.TestOnPoolUpdatedResponse,
                 tc.TestOnPoolDisconnectedResponse,

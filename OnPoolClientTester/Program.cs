@@ -22,15 +22,7 @@ namespace OnPoolClientTester
                 }
             });
 
-            var shouldRunTests = true;
-            if (shouldRunTests) {
                 RunTests();
-            }
-            else {
-                var threadManager = LocalThreadManager.Start();
-                threadManager.Process();
-            }
-
 
             Console.WriteLine("Running");
             Console.ReadLine();
@@ -46,7 +38,7 @@ namespace OnPoolClientTester
                 for (int i = 0; i < 10; i++) {
                     tests.AddRange(new Action<Action>[]
                     {
-//                        tc.TestEveryone,
+                        tc.TestEveryone,
                         tc.TestLeavePool,
                         tc.TestOnPoolUpdatedResponse,
                         tc.TestOnPoolDisconnectedResponse,

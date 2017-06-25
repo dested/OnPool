@@ -1,4 +1,4 @@
-﻿import { Query, QueryParam, QueryDirection, ResponseOptions, QueryType } from "./common/query";
+﻿import { Query,  QueryDirection, ResponseOptions, QueryType } from "./common/query";
 import { Client, Pool } from "./pool";
 import { GetAllPoolsResponse } from "./models/GetAllPoolsResponse";
 import { SocketManager } from "./common/socketManager";
@@ -24,7 +24,7 @@ export class OnPoolClient {
     private onMessage: OnMessage[] = [];
 
     public ConnectToServer(ip: string): void {
-        this.socketManager = new SocketManager("127.0.0.1");
+        this.socketManager = new SocketManager(ip);
         this.socketManager.onReceive = (from, query) => this.messageProcess(query);
         this.socketManager.OnDisconnect.push(_ => this.invokeDisconnect());
         this.socketManager.StartFromClient();
@@ -51,8 +51,8 @@ export class OnPoolClient {
                     q.ResponseOptions = message.ResponseOptions;
                     q.To = fromClient.Id;
                     q.RequestKey = receiptId;
-                    if (message.Contains("~PoolAllCount~")) {
-                        q.Add("~PoolAllCount~", message.Get("~PoolAllCount~"));
+                    if (message.PoolAllCount>-1) {
+                        q.PoolAllCount = message.PoolAllCount;
                     }
                     this.socketManager.SendMessage(q);
                 });
@@ -61,11 +61,11 @@ export class OnPoolClient {
                 if (this.messageResponses[message.RequestKey]) {
                     const callback = this.messageResponses[message.RequestKey];
                     if (message.ResponseOptions === ResponseOptions.SingleResponse) {
-                        if (message.Contains("~PoolAllCount~")) {
+                        if (message.PoolAllCount>-1) {
                             if (!this.poolAllCounter[message.RequestKey])
                                 this.poolAllCounter[message.RequestKey] = 1;
                             else this.poolAllCounter[message.RequestKey] = this.poolAllCounter[message.RequestKey] + 1;
-                            if (this.poolAllCounter[message.RequestKey] === parseInt(message.Get("~PoolAllCount~"))) {
+                            if (this.poolAllCounter[message.RequestKey] === message.PoolAllCount) {
                                 delete this.messageResponses[message.RequestKey];
                                 delete this.poolAllCounter[message.RequestKey];
                             }
@@ -135,7 +135,7 @@ export class OnPoolClient {
     }
     public OnPoolUpdated(poolName: string, callback: (_: Client[]) => void): void {
         const query = Query.BuildServerRequest("OnPoolUpdated", ResponseOptions.OpenResponse);
-        query.Add("PoolName", poolName);
+        query.AddJson(poolName);
         this.sendMessage<GetClientByPoolResponse>(query,
             response => {
                 callback(response.Clients.map(a => this.GetClientById(a.Id)));
@@ -143,7 +143,7 @@ export class OnPoolClient {
     }
     public GetClients(poolName: string, callback: (_: Client[]) => void): void {
         const query = Query.BuildServerRequest("GetClients");
-        query.Add("PoolName", poolName);
+        query.AddJson(poolName);
         this.sendMessage<GetClientByPoolResponse>(query,
             response => {
                 callback(response.Clients.map(a => this.GetClientById(a.Id)));
@@ -153,13 +153,13 @@ export class OnPoolClient {
         const pool = new Pool(poolName);
         this.pools.push(pool);
         const query = Query.BuildServerRequest("JoinPool");
-        query.Add("PoolName", poolName);
+        query.AddJson(poolName);
         this.sendMessage<Object>(query);
         return pool;
     }
     public LeavePool(poolName: string): void {
         const query = Query.BuildServerRequest("LeavePool");
-        query.Add("PoolName", poolName);
+        query.AddJson(poolName);
         this.sendMessage<Object>(query, response => {
             for (let i = this.pools.length - 1; i >= 0; i--) {
                 const pool = this.pools[i];
