@@ -74,8 +74,7 @@ namespace OnPoolCommon
         }
         public void Add(Query query)
         {
-            foreach (var queryQueryParam in query.QueryParams)
-            {
+            foreach (var queryQueryParam in query.QueryParams) {
                 QueryParams.Add(queryQueryParam.Key, queryQueryParam.Value);
             }
         }
@@ -96,8 +95,7 @@ namespace OnPoolCommon
             sb.Append("|");
             sb.Append(Method);
             sb.Append("?");
-            foreach (var query in QueryParams)
-            {
+            foreach (var query in QueryParams) {
                 sb.Append(query.Key);
                 sb.Append("=");
                 sb.Append(Uri.EscapeDataString(query.Value));
@@ -108,7 +106,7 @@ namespace OnPoolCommon
             bytes[0] = (byte)Direction;
             bytes[1] = (byte)Type;
             bytes[2] = (byte)ResponseOptions;
-            Encoding.ASCII.GetBytes(sb + "\0", 0, sb.Length + 1, bytes, 3);
+            Encoding.UTF8.GetBytes(sb + "\0", 0, sb.Length + 1, bytes, 3);
             return bytes;
         }
 
@@ -121,29 +119,24 @@ namespace OnPoolCommon
         {
             var qp = new List<QueryParam> { new QueryParam("Json", json.ToJson()) };
             qp.AddRange(queryParams);
-            return new Query(method, direction, type,ResponseOptions.SingleResponse, qp.ToArray());
+            return new Query(method, direction, type, ResponseOptions.SingleResponse, qp.ToArray());
         }
 
 
-        public static Query Parse(byte b1, byte b2, byte b3, string message)
+        public static Query Parse(byte[] continueBuffer)
         {
-            try
-            {
-                QueryDirection direction = (QueryDirection)b1;
-                QueryType type = (QueryType)b2;
-                ResponseOptions responseOptions = (ResponseOptions)b3;
+            try {
+                QueryDirection direction = (QueryDirection)continueBuffer[0];
+                QueryType type = (QueryType)continueBuffer[1];
+                ResponseOptions responseOptions = (ResponseOptions)continueBuffer[2];
 
-                var pieces = message.Split('|');
-
-
+                var pieces = Encoding.UTF8.GetString(continueBuffer, 3, continueBuffer.Length - 3).Split('|');
                 var messageSplit = pieces[3].Split(new[] { '?' }, StringSplitOptions.RemoveEmptyEntries);
 
                 var qparams = new List<QueryParam>();
-                if (messageSplit.Length == 2)
-                {
+                if (messageSplit.Length == 2) {
                     var split = messageSplit[1].Split(new[] { '&' }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var s in split)
-                    {
+                    foreach (var s in split) {
                         var querySplit = s.Split('=');
                         qparams.Add(new QueryParam(querySplit[0], Uri.UnescapeDataString(querySplit[1])));
                     }
@@ -158,10 +151,9 @@ namespace OnPoolCommon
 
                 return query;
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 Console.WriteLine("Failed Receive message:");
-                Console.WriteLine($"{message}");
+                Console.WriteLine($"{Encoding.UTF8.GetString(continueBuffer)}");
                 Console.WriteLine($"{ex}");
                 return null;
             }
@@ -174,8 +166,7 @@ namespace OnPoolCommon
 
             sb.Append(Method);
             sb.Append("?");
-            foreach (var query in QueryParams)
-            {
+            foreach (var query in QueryParams) {
                 sb.Append(query.Key);
                 sb.Append("=");
                 sb.Append(Uri.EscapeDataString(query.Value));

@@ -47,7 +47,7 @@ namespace OnPoolClient
 
                 var tests = new List<Action<Action>>();
 
-                for (int i = 0; i < 100; i++)
+                for (int i = 0; i < 10; i++)
                 {
                     tests.AddRange(new Action<Action>[]
                     {
