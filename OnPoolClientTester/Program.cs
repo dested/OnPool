@@ -1,35 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using OnPoolCommon;
 
-namespace OnPoolClient
+namespace OnPoolClientTester
 {
-    internal class Program
+    class Program
     {
         private static void Main(string[] args)
         {
             Thread.Sleep(500);
 
-               Task.Run(() =>
-                {
-                    while (true)
-                    {
-                        Thread.Sleep(1000);
-                        Console.WriteLine(SocketManager.Counter);
-                        SocketManager.Counter = 0;
-                    }
-                });
+            Task.Run(() =>
+            {
+                while (true) {
+                    Thread.Sleep(1000);
+                    Console.WriteLine(SocketManager.Counter);
+                    SocketManager.Counter = 0;
+                }
+            });
 
             var shouldRunTests = true;
-            if (shouldRunTests)
-            {
+            if (shouldRunTests) {
                 RunTests();
             }
-            else
-            {
+            else {
                 var threadManager = LocalThreadManager.Start();
                 threadManager.Process();
             }
@@ -41,14 +39,12 @@ namespace OnPoolClient
 
         public static async Task RunTests()
         {
-            try
-            {
+            try {
                 var tc = new Tests();
 
                 var tests = new List<Action<Action>>();
 
-                for (int i = 0; i < 10; i++)
-                {
+                for (int i = 0; i < 10; i++) {
                     tests.AddRange(new Action<Action>[]
                     {
                         tc.TestEveryone,
@@ -65,8 +61,7 @@ namespace OnPoolClient
                 tests.Add(tc.TestSlammer);
 
                 while (true)
-                    foreach (var test in tests)
-                    {
+                    foreach (var test in tests) {
                         var threadManager = LocalThreadManager.Start();
                         test(() => {
                             threadManager.Kill();
@@ -75,11 +70,11 @@ namespace OnPoolClient
                         tc.CleanupTest();
                     }
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 Console.WriteLine(ex);
             }
             Console.WriteLine("Done");
         }
+
     }
 }

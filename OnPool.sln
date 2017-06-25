@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnPoolCommon", "OnPoolCommo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnPoolClientTS", "OnPoolClientTS\OnPoolClientTS.csproj", "{C0D4A02E-F3C2-49BC-A622-09A74EAF9D7B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OnPoolClientTester", "OnPoolClientTester\OnPoolClientTester.csproj", "{BE804EAE-BE78-420B-B286-F1AACA2C83A3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,6 +33,10 @@ Global
 		{895ED083-B79F-42E9-BF6F-870DA993962D}.Release|Any CPU.Build.0 = Release|Any CPU
 		{C0D4A02E-F3C2-49BC-A622-09A74EAF9D7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{C0D4A02E-F3C2-49BC-A622-09A74EAF9D7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE804EAE-BE78-420B-B286-F1AACA2C83A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE804EAE-BE78-420B-B286-F1AACA2C83A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE804EAE-BE78-420B-B286-F1AACA2C83A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE804EAE-BE78-420B-B286-F1AACA2C83A3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using OnPoolCommon;
 
-namespace OnPoolClient
+namespace OnPoolClientTester
 {
     public static class Assert
     {
@@ -17,12 +17,12 @@ namespace OnPoolClient
 
     public class Tests
     {
-        private List<OnPoolClient> connectedClients = new List<OnPoolClient>();
+        private List<OnPoolClient.OnPoolClient> connectedClients = new List<OnPoolClient.OnPoolClient>();
 
         public void TestLeavePool(Action success)
         {
             var poolName = Guid.NewGuid().ToString("N");
-            OnPoolClient m2 = null;
+            OnPoolClient.OnPoolClient m2 = null;
             BuildClient(manager1 => {
                 manager1.OnReady(() => {
                     int hitCount = 0;
@@ -104,7 +104,6 @@ namespace OnPoolClient
                                     BuildClient(manager4 => {
                                         manager4.OnReady(() => {
                                             manager4.JoinPool(poolName, (from, message, respond) => { });
-
                                             manager4.Disconnet();
                                             manager3.Disconnet();
                                             manager2.Disconnet();
@@ -409,9 +408,9 @@ namespace OnPoolClient
             });
         }
 
-        private void BuildClient(Action<OnPoolClient> ready)
+        private void BuildClient(Action<OnPoolClient.OnPoolClient> ready)
         {
-            var c = new OnPoolClient();
+            var c = new OnPoolClient.OnPoolClient();
             connectedClients.Add(c);
             c.ConnectToServer("127.0.0.1");
             ready(c);
@@ -421,7 +420,7 @@ namespace OnPoolClient
         {
             foreach (var clientBrokerManager in connectedClients)
                 clientBrokerManager.Disconnet();
-            connectedClients = new List<OnPoolClient>();
+            connectedClients = new List<OnPoolClient.OnPoolClient>();
         }
     }
 }
