@@ -203,8 +203,7 @@ namespace OnPoolClient
 
         public void SendClientMessage<T>(string clientId, string method, object payload, Action<T> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
-            var query = new Query()
-            {
+            var query = new Query() {
                 Method = method,
                 Direction = QueryDirection.Request,
                 Type = QueryType.Client,
@@ -220,8 +219,7 @@ namespace OnPoolClient
         public void SendPoolMessage<T>(string poolName, string method, object payload, Action<T> callback = null,
             ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
-            var query = new Query()
-            {
+            var query = new Query() {
                 Method = method,
                 Direction = QueryDirection.Request,
                 Type = QueryType.Pool,
@@ -235,8 +233,7 @@ namespace OnPoolClient
         public void SendAllPoolMessage<T>(string poolName, string method, object payload, Action<T> callback = null,
             ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
-            var query = new Query()
-            {
+            var query = new Query() {
                 Method = method,
                 Direction = QueryDirection.Request,
                 Type = QueryType.PoolAll,
@@ -245,6 +242,22 @@ namespace OnPoolClient
             };
             query.AddJson(payload);
             sendMessage(query, callback);
+        }
+
+
+        public void SendClientMessage(string clientId, string method, object payload, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        {
+            this.SendClientMessage<object>(clientId, method, payload, null, responseOptions);
+        }
+
+        public void SendPoolMessage(string poolName, string method, object payload, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        {
+            this.SendPoolMessage<object>(poolName, method, payload, null, responseOptions);
+        }
+
+        public void SendAllPoolMessage(string poolName, string method, object payload, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        {
+            this.SendAllPoolMessage<object>(poolName,method,payload,null,responseOptions);
         }
 
         public void Disconnet()
