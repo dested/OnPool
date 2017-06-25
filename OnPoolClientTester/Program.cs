@@ -46,7 +46,7 @@ namespace OnPoolClientTester
                 for (int i = 0; i < 10; i++) {
                     tests.AddRange(new Action<Action>[]
                     {
-                        tc.TestEveryone,
+//                        tc.TestEveryone,
                         tc.TestLeavePool,
                         tc.TestOnPoolUpdatedResponse,
                         tc.TestOnPoolDisconnectedResponse,
