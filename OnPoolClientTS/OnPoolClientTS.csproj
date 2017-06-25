@@ -46,9 +46,7 @@
   </ItemGroup>
   <ItemGroup>
     <TypeScriptCompile Include="src\models\GetAllPoolsResponse.ts" />
-    <TypeScriptCompile Include="src\models\GetPoolByNameResponse.ts" />
-    <TypeScriptCompile Include="src\models\GetSwimmerByPoolResponse.ts" />
-    <TypeScriptCompile Include="src\models\SwimmerResponse.ts" />
+    <TypeScriptCompile Include="src\models\GetClientByPoolResponse.ts" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">12.0</VisualStudioVersion>

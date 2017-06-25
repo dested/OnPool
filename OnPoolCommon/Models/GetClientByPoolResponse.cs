@@ -4,4 +4,8 @@ namespace OnPoolCommon.Models
     {
         public ClientResponse[] Clients { get; set; }
     }
+    public class ClientResponse
+    {
+        public string Id { get; set; }
+    }
 }

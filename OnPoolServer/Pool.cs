@@ -8,28 +8,17 @@ namespace OnPoolServer
 {
     public class Pool
     {
-        private int roundRobin;
-        public string Name { get; set; }
-        readonly Dictionary<string, Action> onClientChange = new Dictionary<string, Action>();
+        private readonly Dictionary<string, Action> onClientChange = new Dictionary<string, Action>();
         private readonly List<Client> clients = new List<Client>();
+        private int roundRobin;
+
+        public string Name { get; set; }
+        public int NumberOfClients => clients.Count;
 
         public Pool(string poolName)
         {
             Name = poolName;
         }
-
-
-        public void OnClientChange(Client forClient, Action callback)
-        {
-            if (onClientChange.ContainsKey(forClient.Id)) {
-                onClientChange[forClient.Id] += callback;
-            }
-            else {
-                onClientChange[forClient.Id] = callback;
-            }
-        }
-
-        public int NumberOfClients => clients.Count;
 
         public void AddClient(Client client)
         {
@@ -38,6 +27,7 @@ namespace OnPoolServer
                 action.Value.Invoke();
             }
         }
+
         public void RemoveClient(Client client)
         {
             clients.Remove(client);
@@ -45,6 +35,26 @@ namespace OnPoolServer
             onClientChange.Remove(client.Id);
             foreach (var action in onClientChange.ToArray()) {
                 action.Value.Invoke();
+            }
+        }
+
+        public bool ContainsClient(Client client)
+        {
+            return clients.Contains(client);
+        }
+
+        public bool IsEmpty()
+        {
+            return clients.Count == 0;
+        }
+      
+        public void OnClientChange(Client forClient, Action callback)
+        {
+            if (onClientChange.ContainsKey(forClient.Id)) {
+                onClientChange[forClient.Id] += callback;
+            }
+            else {
+                onClientChange[forClient.Id] = callback;
             }
         }
 
@@ -56,22 +66,12 @@ namespace OnPoolServer
             roundRobin = (roundRobin + 1) % clients.Count;
             return client;
         }
-
-        public bool ContainsClient(Client client)
-        {
-            return clients.Contains(client);
-        }
-
-
-        public bool IsEmpty()
-        {
-            return clients.Count == 0;
-        }
-
+        
         public ClientResponse[] GetClientsResponse()
         {
             return clients.Select(a => new ClientResponse { Id = a.Id }).ToArray();
         }
+
         public IEnumerable<SocketManager> GetClientsSockets()
         {
             return clients.Select(a => a.SocketManager);

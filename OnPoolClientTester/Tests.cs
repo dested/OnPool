@@ -38,11 +38,11 @@ namespace OnPoolClientTester
                         }
                     });
 
-                    manager1.JoinPool(poolName, (from, message, respond) => { });
-
+                    var pool=manager1.JoinPool(poolName);
+                    pool.OnMessage((from, message, respond) => { });
                     BuildClient(manager2 => {
                         m2 = manager2;
-                        manager2.OnReady(() => { manager2.JoinPool(poolName, (from, message, respond) => { }); });
+                        manager2.OnReady(() => { manager2.JoinPool(poolName); });
                     });
                 });
             });
@@ -62,14 +62,14 @@ namespace OnPoolClientTester
                         }
                     });
 
-                    manager1.JoinPool(poolName, (from, message, respond) => { });
+                    manager1.JoinPool(poolName);
 
                     BuildClient(manager2 => {
                         manager2.OnReady(() => {
-                            manager2.JoinPool(poolName, (from, message, respond) => { });
+                            manager2.JoinPool(poolName);
                             BuildClient(manager3 => {
                                 manager3.OnReady(
-                                    () => { manager3.JoinPool(poolName, (from, message, respond) => { }); });
+                                    () => { manager3.JoinPool(poolName); });
                             });
                         });
                     });
@@ -97,13 +97,13 @@ namespace OnPoolClientTester
 
                     BuildClient(manager2 => {
                         manager2.OnReady(() => {
-                            manager2.JoinPool(poolName, (from, message, respond) => { });
+                            manager2.JoinPool(poolName);
                             BuildClient(manager3 => {
                                 manager3.OnReady(() => {
-                                    manager3.JoinPool(poolName, (from, message, respond) => { });
+                                    manager3.JoinPool(poolName);
                                     BuildClient(manager4 => {
                                         manager4.OnReady(() => {
-                                            manager4.JoinPool(poolName, (from, message, respond) => { });
+                                            manager4.JoinPool(poolName);
                                             manager4.Disconnet();
                                             manager3.Disconnet();
                                             manager2.Disconnet();
@@ -127,40 +127,40 @@ namespace OnPoolClientTester
                 manager1.OnMessage((from, message, respond) => {
                     Assert.AreEqual(message.Method, "Baz");
                     Assert.AreEqual(message.GetJson<int>(), 12);
-                    respond(QueryParam.Json("foo1"));
+                    respond("foo1");
                 });
                 manager1.OnReady(() => {
-                    manager1.JoinPool(poolName, (from, message, respond) => { });
+                    manager1.JoinPool(poolName);
 
                     BuildClient(manager2 => {
                         manager2.OnMessage((from, message, respond) => {
                             Assert.AreEqual(message.Method, "Baz");
                             Assert.AreEqual(message.GetJson<int>(), 13);
-                            respond(QueryParam.Json("foo2"));
+                            respond("foo2");
                         });
                         manager2.OnReady(() => {
-                            manager2.JoinPool(poolName, (from, message, respond) => { });
+                            manager2.JoinPool(poolName);
                             BuildClient(manager3 => {
                                 manager3.OnReady(() => {
-                                    manager3.JoinPool(poolName, (from, message, respond) => { });
+                                    manager3.JoinPool(poolName);
                                     manager3.OnPoolUpdated(poolName, (clients) => {
                                         if (clients.Length == 3) {
                                             var count = 0;
-                                            manager3.SendMessage(clients[0].Id,
-                                                Query.Build("Baz", QueryDirection.Request, QueryType.Client, 12),
-                                                q => {
+                                            manager3.SendClientMessage<string>(clients[0].Id,
+                                                "Baz",
+                                                12,
+                                                result => {
                                                     count++;
-                                                    Assert.AreEqual(q.GetJson<string>(), "foo1");
+                                                    Assert.AreEqual(result, "foo1");
                                                     if (count == 2)
                                                         success();
                                                 }
                                             );
 
-                                            manager3.SendMessage(clients[1].Id,
-                                                Query.Build("Baz", QueryDirection.Request, QueryType.Client, 13),
-                                                q => {
+                                            manager3.SendClientMessage<string>(clients[1].Id, "Baz", 13,
+                                                result => {
                                                     count++;
-                                                    Assert.AreEqual(q.GetJson<string>(), "foo2");
+                                                    Assert.AreEqual(result, "foo2");
                                                     if (count == 2)
                                                         success();
                                                 }
@@ -182,25 +182,25 @@ namespace OnPoolClientTester
             var poolName = Guid.NewGuid().ToString("N");
             BuildClient(manager1 => {
                 manager1.OnReady(() => {
-                    manager1.JoinPool(poolName, (from, message, respond) => {
+                    manager1.JoinPool(poolName).OnMessage((from, message, respond) => {
                         Assert.AreEqual(message.Method, "Baz");
                         if (poolHit == 0) {
                             poolHit++;
                             Assert.AreEqual(message.GetJson<int>(), 12);
-                            respond(QueryParam.Json(13));
+                            respond(13);
                         }
                         else {
                             Assert.AreEqual(message.GetJson<int>(), 14);
-                            respond(QueryParam.Json(15));
+                            respond(15);
                         }
                     });
 
                     BuildClient(manager2 => {
                         manager2.OnReady(() => {
-                            manager2.JoinPool(poolName, (from, message, respond) => {
+                            manager2.JoinPool(poolName).OnMessage((from, message, respond) => {
                                 Assert.AreEqual(message.Method, "Bar");
                                 Assert.AreEqual(message.GetJson<int>(), 13);
-                                respond(QueryParam.Json(14));
+                                respond(14);
                             });
 
                             BuildClient(manager3 => {
@@ -208,24 +208,22 @@ namespace OnPoolClientTester
                                     manager3.OnPoolUpdated(poolName, (clients) => {
                                         if (clients.Length == 2) {
                                             var countHit = 0;
-                                            manager3.SendPoolMessage(poolName,
-                                                Query.Build("Baz", QueryDirection.Request, QueryType.Pool, 12), m => {
-                                                    Assert.AreEqual(m.GetJson<int>(), 13);
+                                            manager3.SendPoolMessage<int>(poolName, "Baz", 12,
+                                                m => {
+                                                    Assert.AreEqual(m, 13);
                                                     countHit++;
                                                     if (countHit == 3) success();
                                                 });
-                                            manager3.SendPoolMessage(poolName,
-                                                Query.Build("Bar", QueryDirection.Request, QueryType.Pool, 13), m => {
-                                                    Assert.AreEqual(m.GetJson<int>(), 14);
-                                                    countHit++;
-                                                    if (countHit == 3) success();
-                                                });
-                                            manager3.SendPoolMessage(poolName,
-                                                Query.Build("Baz", QueryDirection.Request, QueryType.Pool, 14), m => {
-                                                    Assert.AreEqual(m.GetJson<int>(), 15);
-                                                    countHit++;
-                                                    if (countHit == 3) success();
-                                                });
+                                            manager3.SendPoolMessage<int>(poolName, "Bar", 13, m => {
+                                                Assert.AreEqual(m, 14);
+                                                countHit++;
+                                                if (countHit == 3) success();
+                                            });
+                                            manager3.SendPoolMessage<int>(poolName, "Baz", 14, m => {
+                                                Assert.AreEqual(m, 15);
+                                                countHit++;
+                                                if (countHit == 3) success();
+                                            });
                                         }
                                     });
                                 });
@@ -236,6 +234,47 @@ namespace OnPoolClientTester
             });
         }
 
+        public void TestClientSendObject(Action success)
+        {
+            var poolName = Guid.NewGuid().ToString("N");
+            BuildClient(manager1 => {
+                manager1.OnReady(() => {
+                    manager1.OnMessage((from, message, respond) => {
+                        Assert.AreEqual(message.Method, "Hi");
+                        var payload = message.GetJson<Payload>();
+                        Assert.AreEqual(payload.Foo, "hello");
+                        Assert.AreEqual(payload.Bar, "Elido");
+                        respond(new Payload() { Foo = "hi", Bar = "ashley" });
+                    });
+
+                    manager1.JoinPool(poolName);
+
+                    BuildClient(manager2 => {
+                        manager2.OnReady(() => {
+                            manager1.OnPoolUpdated(poolName, clients => {
+                                if (clients.Length == 1) {
+                                    var swim = clients.First();
+                                    manager2.SendClientMessage<Payload>(swim.Id, "Hi", new Payload() {Foo="hello",Bar = "Elido"},
+                                        q => {
+                                            Assert.AreEqual(q.Foo, "hello");
+                                            Assert.AreEqual(q.Bar, "ashley");
+                                            success();
+                                        }
+                                    );
+                                }
+                            });
+                        });
+                    });
+                });
+            });
+        }
+
+        public class Payload
+        {
+            public string Foo { get; set; }
+            public string Bar { get; set; }
+        }
+
         public void TestDirectClientResponse(Action success)
         {
             var poolName = Guid.NewGuid().ToString("N");
@@ -244,21 +283,19 @@ namespace OnPoolClientTester
                     manager1.OnMessage((from, message, respond) => {
                         Assert.AreEqual(message.Method, "Hi");
                         Assert.AreEqual(message.GetJson<int>(), 12);
-                        respond(QueryParam.Json(20));
+                        respond(20);
                     });
 
-                    manager1.JoinPool(poolName, null);
+                    manager1.JoinPool(poolName);
 
                     BuildClient(manager2 => {
                         manager2.OnReady(() => {
                             manager1.OnPoolUpdated(poolName, clients => {
                                 if (clients.Length == 1) {
                                     var swim = clients.First();
-                                    manager2.SendMessage(
-                                        swim.Id,
-                                        Query.Build("Hi", QueryDirection.Request, QueryType.Client, 12),
+                                    manager2.SendClientMessage<int>(swim.Id, "Hi", 12,
                                         q => {
-                                            Assert.AreEqual(q.GetJson<int>(), 20);
+                                            Assert.AreEqual(q, 20);
                                             success();
                                         }
                                     );
@@ -276,17 +313,17 @@ namespace OnPoolClientTester
 
             BuildClient(manager1 => {
                 manager1.OnReady(() => {
-                    manager1.JoinPool(poolName, (from, message, respond) => {
+                    manager1.JoinPool(poolName).OnMessage((from, message, respond) => {
                         Assert.AreEqual(message.Method, "Bar");
                         Assert.AreEqual(message.GetJson<int>(), 13);
-                        respond(QueryParam.Json(14));
+                        respond(14);
                     });
                     BuildClient(manager2 => {
                         manager2.OnReady(() => {
-                            manager2.JoinPool(poolName, (from, message, respond) => {
+                            manager2.JoinPool(poolName).OnMessage((from, message, respond) => {
                                 Assert.AreEqual(message.Method, "Bar");
                                 Assert.AreEqual(message.GetJson<int>(), 13);
-                                respond(QueryParam.Json(14));
+                                respond(14);
                             });
 
                             BuildClient(manager3 => {
@@ -294,14 +331,11 @@ namespace OnPoolClientTester
                                     manager3.OnPoolUpdated(poolName, (clients) => {
                                         if (clients.Length == 2) {
                                             var countHit = 0;
-                                            manager3.SendAllPoolMessage(
-                                                poolName,
-                                                Query.Build("Bar", QueryDirection.Request, QueryType.PoolAll, 13),
-                                                m => {
-                                                    Assert.AreEqual(m.GetJson<int>(), 14);
-                                                    countHit++;
-                                                    if (countHit == 2) success();
-                                                }
+                                            manager3.SendAllPoolMessage<int>(poolName, "Bar", 13, m => {
+                                                Assert.AreEqual(m, 14);
+                                                countHit++;
+                                                if (countHit == 2) success();
+                                            }
                                             );
                                         }
                                     });
@@ -320,10 +354,10 @@ namespace OnPoolClientTester
             for (var i = 0; i < total; i++) {
                 BuildClient(manager => {
                     manager.OnReady(() => {
-                        manager.JoinPool(poolName, (from, message, respond) => {
+                        manager.JoinPool(poolName).OnMessage((from, message, respond) => {
                             Assert.AreEqual(message.Method, "Bar");
                             Assert.AreEqual(message.GetJson<int>(), 13);
-                            respond(QueryParam.Json(14));
+                            respond(14);
                         });
                     });
                 });
@@ -335,12 +369,11 @@ namespace OnPoolClientTester
                     manager.OnPoolUpdated(poolName, (clients) => {
                         if (clients.Length == total) {
                             var countHit = 0;
-                            manager.SendAllPoolMessage(poolName,
-                                Query.Build("Bar", QueryDirection.Request, QueryType.PoolAll, 13), m => {
-                                    Assert.AreEqual(m.GetJson<int>(), 14);
-                                    countHit++;
-                                    if (countHit == 100) success();
-                                }
+                            manager.SendAllPoolMessage<int>(poolName, "Bar", 13, m => {
+                                Assert.AreEqual(m, 14);
+                                countHit++;
+                                if (countHit == 100) success();
+                            }
                             );
                         }
                     });
@@ -377,10 +410,10 @@ namespace OnPoolClientTester
             for (var i = 0; i < total; i++) {
                 BuildClient(manager => {
                     manager.OnReady(() => {
-                        manager.JoinPool(poolName, (from, message, respond) => {
+                        manager.JoinPool(poolName).OnMessage((from, message, respond) => {
                             Assert.AreEqual(message.Method, "Bar");
                             Assert.AreEqual(message.GetJson<int>(), 13);
-                            respond(QueryParam.Json(14));
+                            respond(14);
                         });
                     });
                 });
@@ -393,10 +426,8 @@ namespace OnPoolClientTester
                         if (clients.Length == total) {
                             Action exec = null;
                             exec = () => {
-                                manager.SendPoolMessage(poolName,
-                                    Query.Build("Bar", QueryDirection.Request, QueryType.Pool, 13),
-                                    m => {
-                                        Assert.AreEqual(m.GetJson<int>(), 14);
+                                manager.SendPoolMessage<int>(poolName, "Bar", 13, m => {
+                                        Assert.AreEqual(m, 14);
                                         exec();
                                     }
                                 );

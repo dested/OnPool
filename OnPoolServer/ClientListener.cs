@@ -8,7 +8,6 @@ namespace OnPoolServer
     public class ClientListener
     {
         private readonly Action<Socket> newConnection;
-
         private Socket server;
 
         public ClientListener(Action<Socket> newConnection)

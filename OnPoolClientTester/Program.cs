@@ -14,8 +14,7 @@ namespace OnPoolClientTester
         {
             Thread.Sleep(500);
 
-            Task.Run(() =>
-            {
+            Task.Run(() => {
                 while (true) {
                     Thread.Sleep(1000);
                     Console.WriteLine(SocketManager.Counter);
@@ -47,16 +46,16 @@ namespace OnPoolClientTester
                 for (int i = 0; i < 10; i++) {
                     tests.AddRange(new Action<Action>[]
                     {
-                        tc.TestEveryone,
-                        tc.TestLeavePool,
-                        tc.TestOnPoolUpdatedResponse,
-                        tc.TestOnPoolDisconnectedResponse,
-                        tc.TestClientResponse,
-                        tc.TestPoolResponse,
-                        tc.TestDirectClientResponse,
-                        tc.TestAllPoolResponse,
+//                        tc.TestEveryone,
+//                        tc.TestLeavePool,
+//                        tc.TestOnPoolUpdatedResponse,
+//                        tc.TestOnPoolDisconnectedResponse,
+//                        tc.TestClientResponse,
+//                        tc.TestPoolResponse,
+//                        tc.TestDirectClientResponse,
+//                        tc.TestAllPoolResponse,
+                        tc.TestClientSendObject
                     });
-
                 }
                 tests.Add(tc.TestSlammer);
 
@@ -68,6 +67,7 @@ namespace OnPoolClientTester
                         });
                         await threadManager.Process();
                         tc.CleanupTest();
+                        Console.WriteLine("Test Pass");
                     }
             }
             catch (Exception ex) {

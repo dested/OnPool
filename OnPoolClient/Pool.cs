@@ -8,15 +8,13 @@ namespace OnPoolClient
 {
     public class Pool
     {
+        private OnMessage onMessage { get; set; }
+        public string PoolName { get; set; }
 
-        public Pool(string poolName, OnMessage onMessage)
+        public Pool(string poolName)
         {
-            this.onMessage = onMessage;
             PoolName = poolName;
         }
-
-        public string PoolName { get; set; }
-        private OnMessage onMessage { get; set; }
 
         public void ReceiveMessage(Client from, Query query, RespondMessage respond)
         {
@@ -27,18 +25,15 @@ namespace OnPoolClient
         {
             onMessage += callback;
         }
-
     }
 
     public class Client
     {
+        public string Id { get; set; }
 
-        public Client( string clientId)
+        public Client(string clientId)
         {
             Id = clientId;
         }
-
-        public string Id { get; set; }
-
     }
 }

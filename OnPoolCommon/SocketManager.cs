@@ -9,16 +9,18 @@ using System.Net.Sockets;
 
 namespace OnPoolCommon
 {
-    //    [DebuggerStepThrough]
+    [DebuggerStepThrough]
     public class SocketManager
     {
-        public static int Counter;
-        public Action<SocketManager, Query> onReceive;
-
         private LocalBackgroundWorker<object, WorkerResponse> awaitMessagesWorker;
         private bool disconnected;
         private readonly string serverIp;
         private Socket socket;
+
+        public static int Counter;
+        public Action<SocketManager, Query> onReceive;
+        public string Id { get; set; }
+        public Action<SocketManager> OnDisconnect { get; set; }
 
         public SocketManager(Socket socket)
         {
@@ -29,16 +31,10 @@ namespace OnPoolCommon
 #endif
         }
 
-
         public SocketManager(string serverIp)
         {
             this.serverIp = serverIp;
         }
-
-        public string Id { get; set; }
-
-        public Action<SocketManager> OnDisconnect { get; set; }
-
 
         public void StartFromClient()
         {
@@ -114,11 +110,10 @@ namespace OnPoolCommon
                 return false;
             }
 
-
             try {
                 socket.Send(message.GetBytes());
             }
-            catch (SocketException ex) {
+            catch (SocketException) {
                 Disconnect();
                 return false;
             }
@@ -176,13 +171,13 @@ namespace OnPoolCommon
                     break;
                 }
             }
-            catch (IOException ex) {
+            catch (IOException) {
                 Thread_Disconnected(worker);
             }
-            catch (SocketException ex) {
+            catch (SocketException) {
                 Thread_Disconnected(worker);
             }
-            catch (ObjectDisposedException ex) {
+            catch (ObjectDisposedException) {
                 Thread_Disconnected(worker);
             }
             catch (Exception ex) {

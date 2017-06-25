@@ -8,10 +8,9 @@ namespace OnPoolServer
 {
     public class OnPoolServer
     {
+        private readonly List<Client> clients = new List<Client>();
         private readonly List<Pool> pools = new List<Pool>();
         private readonly ClientListener serverManager;
-        public readonly List<Client> Clients = new List<Client>();
-
 
         private readonly Dictionary<string, Action<Query>> messageResponses = new Dictionary<string, Action<Query>>();
         private readonly Dictionary<string, int> poolAllCounter = new Dictionary<string, int>();
@@ -19,14 +18,13 @@ namespace OnPoolServer
         public OnPoolServer()
         {
             var threadManager = LocalThreadManager.Start();
-            serverManager = new ClientListener(socket =>
-                {
-                    var socketManager = new SocketManager(socket);
-                    socketManager.onReceive += onMessage;
-                    socketManager.OnDisconnect += RemoveClient;
-                    AddClient(socketManager);
-                    socketManager.Start();
-                }
+            serverManager = new ClientListener(socket => {
+                var socketManager = new SocketManager(socket);
+                socketManager.onReceive += onMessage;
+                socketManager.OnDisconnect += RemoveClient;
+                AddClient(socketManager);
+                socketManager.Start();
+            }
             );
             serverManager.StartServer();
             threadManager.Process();
@@ -37,55 +35,51 @@ namespace OnPoolServer
             Client fromClient = GetClient(socketManager.Id);
 
 
-            switch (message.Direction)
-            {
+            switch (message.Direction) {
                 case QueryDirection.Request:
 
                     var receiptId = message.RequestKey;
-                    ClientMessage(fromClient, message, queryResponse =>
-                        {
-                            var q = Query.Build(queryResponse.Method, QueryDirection.Response, queryResponse.Type);
-                            q.ResponseOptions = message.ResponseOptions;
-                            q.Add(queryResponse);
-                            q.RequestKey = receiptId;
-                            socketManager.SendMessage(q);
+                    ClientMessage(fromClient, message, queryResponse => {
+                        var q = new Query();
+                        q.Method = message.Method;
+                        q.Direction = QueryDirection.Response;
+                        q.Type = message.Type;
+                        q.ResponseOptions = message.ResponseOptions;
+                        q.To = fromClient.Id;
+                        q.RequestKey = receiptId;
+                        if (message.Contains("~PoolAllCount~")) {
+                            q.Add("~PoolAllCount~", message.Get("~PoolAllCount~"));
                         }
+                        q.AddJson(queryResponse);
+                        socketManager.SendMessage(q);
+                    }
                     );
 
                     break;
                 case QueryDirection.Response:
                     var requestId = socketManager.Id + message.RequestKey;
 
-                    if (messageResponses.ContainsKey(requestId))
-                    {
+                    if (messageResponses.ContainsKey(requestId)) {
                         var callback = messageResponses[requestId];
-                        if (message.ResponseOptions == ResponseOptions.SingleResponse)
-                        {
-                            if (message.Contains("~PoolAllCount~"))
-                            {
+                        if (message.ResponseOptions == ResponseOptions.SingleResponse) {
+                            if (message.Contains("~PoolAllCount~")) {
                                 if (!poolAllCounter.ContainsKey(requestId))
                                     poolAllCounter[requestId] = 1;
                                 else
                                     poolAllCounter[requestId] = poolAllCounter[requestId] + 1;
 
-                                if (poolAllCounter[requestId] == int.Parse(message["~PoolAllCount~"]))
-                                {
+                                if (poolAllCounter[requestId] == int.Parse(message.Get("~PoolAllCount~"))) {
                                     messageResponses.Remove(requestId);
                                     poolAllCounter.Remove(requestId);
                                 }
                             }
-                            else
-                            {
-
+                            else {
                                 messageResponses.Remove(requestId);
-
                             }
                         }
-                        if (callback != null)
-                            callback(message);
+                        callback?.Invoke(message);
                     }
-                    else
-                    {
+                    else {
                         Console.WriteLine(string.Join(",", messageResponses.Keys.ToArray()));
                         throw new Exception("Cannot find response callback  " + message);
                     }
@@ -98,37 +92,9 @@ namespace OnPoolServer
 
         }
 
-        public bool SendMessage(SocketManager socketManager, Query message, Action<Query> callback)
+        private void ClientMessage(Client client, Query query, Action<object> respond)
         {
-            messageResponses[socketManager.Id + message.RequestKey] = callback;
-
-
-            if (message.From == null)
-                message.From = socketManager.Id;
-            return socketManager.SendMessage(message);
-
-        }
-
-        public bool FowardMessage(SocketManager socketManager, Query message, Action<Query> callback)
-        {
-            if (socketManager == null)
-            {
-                throw new Exception("socket not found " + message.ToString());
-            }
-
-            var responseKey = message.RequestKey;
-            messageResponses[socketManager.Id + responseKey] = callback;
-
-            if (message.From == null)
-                message.From = socketManager.Id;
-            return socketManager.SendMessage(message);
-
-        }
-
-        private void ClientMessage(Client client, Query query, Action<Query> respond)
-        {
-            switch (query.Type)
-            {
+            switch (query.Type) {
                 case QueryType.Client:
                     ForwardMessageToClient(query, respond);
                     break;
@@ -139,54 +105,44 @@ namespace OnPoolServer
                     ForwardMessageToPoolAll(query, respond);
                     break;
                 case QueryType.Server:
-                    switch (query.Method)
-                    {
-                        case "GetClientId":
-                            {
-                                respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client, client.Id));
+                    switch (query.Method) {
+                        case "GetClientId": {
+                                respond(client.Id);
                                 break;
                             }
-                        case "GetAllPools":
-                            {
-                                var response = GetAllPools();
-                                respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client, response));
-                                break;
-                            }
-                        case "OnPoolUpdated":
-                            {
-                                var pool = getPoolByName(query["PoolName"]);
-                                pool.OnClientChange(client, () =>
-                                {
-                                    respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client, GetClientsInPool(query["PoolName"])));
+                        case "GetAllPools": { 
+                                respond(new GetAllPoolsResponse {
+                                    PoolNames = pools.Select(a => a.Name).ToArray()
                                 });
-                                respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client, GetClientsInPool(query["PoolName"])));
+                                break;
+                            }
+                        case "OnPoolUpdated": {
+                                var pool = getPoolByName(query.Get("PoolName"));
+                                pool.OnClientChange(client, () => {
+                                    respond(GetClientByPool(query.Get("PoolName")));
+                                });
+                                respond(GetClientByPool(query.Get("PoolName")));
 
                                 break;
                             }
-                        case "JoinPool":
-                            {
-                                JoinPool(client, query["PoolName"]);
-                                respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client));
+                        case "JoinPool": {
+                                JoinPool(client, query.Get("PoolName"));
+                                respond(null);
                                 break;
                             }
-                        case "LeavePool":
-                            {
-                                var pool = getPoolByName(query["PoolName"]);
-                                if (pool.ContainsClient(client))
-                                {
+                        case "LeavePool": {
+                                var pool = getPoolByName(query.Get("PoolName"));
+                                if (pool.ContainsClient(client)) {
                                     pool.RemoveClient(client);
-                                    if (pool.IsEmpty())
-                                    {
+                                    if (pool.IsEmpty()) {
                                         pools.Remove(pool);
                                     }
                                 }
-                                respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client));
+                                respond(null);
                                 break;
                             }
-                        case "GetClients":
-                            {
-                                var response = GetClientsInPool(query["PoolName"]);
-                                respond(Query.Build(query.Method, QueryDirection.Response, QueryType.Client, response));
+                        case "GetClients": {
+                                respond(GetClientByPool(query.Get("PoolName")));
                                 break;
                             }
                         default: throw new Exception("Method not found: " + query.Method);
@@ -199,59 +155,127 @@ namespace OnPoolServer
 
         }
 
-        public void AddClient(SocketManager socketManager)
+        private GetClientByPoolResponse GetClientByPool(string poolName)
         {
-            var client = new Client(socketManager, socketManager.Id);
-            Clients.Add(client);
-            JoinPool(client, "Everyone");
+            return new GetClientByPoolResponse {
+                Clients = getPoolByName(poolName).GetClientsResponse()
+            };
         }
 
         public Client GetClient(string id)
         {
-            return Clients.FirstOrDefault(a => a.Id == id);
+            return clients.FirstOrDefault(a => a.Id == id);
+        }
+
+        public void AddClient(SocketManager socketManager)
+        {
+            var client = new Client(socketManager, socketManager.Id);
+            clients.Add(client);
+            JoinPool(client, "Everyone");
         }
 
         public void RemoveClient(SocketManager socketManager)
         {
-            var client = Clients.First(a => a.Id == socketManager.Id);
-            Clients.Remove(client);
-            foreach (var key in messageResponses.Keys.ToArray())
-            {
-                if (key.StartsWith(client.Id))
-                {
+            var client = clients.First(a => a.Id == socketManager.Id);
+            clients.Remove(client);
+            foreach (var key in messageResponses.Keys.ToArray()) {
+                if (key.StartsWith(client.Id)) {
                     messageResponses.Remove(key);
                 }
             }
-            foreach (var key in poolAllCounter.Keys.ToArray())
-            {
-                if (key.StartsWith(client.Id))
-                {
+            foreach (var key in poolAllCounter.Keys.ToArray()) {
+                if (key.StartsWith(client.Id)) {
                     poolAllCounter.Remove(key);
                 }
             }
 
-            for (var index = pools.Count - 1; index >= 0; index--)
-            {
+            for (var index = pools.Count - 1; index >= 0; index--) {
                 var serverPool = pools[index];
-                if (serverPool.ContainsClient(client))
-                {
+                if (serverPool.ContainsClient(client)) {
                     serverPool.RemoveClient(client);
-                    if (serverPool.IsEmpty())
-                    {
+                    if (serverPool.IsEmpty()) {
                         pools.Remove(serverPool);
                     }
                 }
             }
         }
-
-        public GetAllPoolsResponse GetAllPools()
+         
+        public void JoinPool(Client client, string poolName)
         {
-            return new GetAllPoolsResponse
-            {
-                PoolNames = pools.Select(a => a.Name).ToArray()
-            };
+            var pool = getPoolByName(poolName);
+            if (pool.ContainsClient(client)) {
+                return;
+            }
+            pool.AddClient(client);
+
+        }
+         
+        public bool FowardMessage(SocketManager socketManager, Query message, Action<Query> callback)
+        {
+            if (socketManager == null) {
+                throw new Exception("socket not found " + message);
+            }
+
+            var responseKey = message.RequestKey;
+            messageResponses[socketManager.Id + responseKey] = callback;
+
+            if (message.From == null)
+                message.From = socketManager.Id;
+
+            return socketManager.SendMessage(message);
         }
 
+        public void ForwardMessageToClient(Query query, Action<object> respond)
+        {
+            var client = clients.FirstOrDefault(a => a.Id == query.To);
+            FowardMessage(client?.SocketManager, query, (q) => {
+                respond(q.GetJson<object>());
+            });
+        }
+
+        public void ForwardMessageToPool(Query query, Action<object> respond)
+        {
+            var poolName = query.To;
+            var pool = getPoolByName(poolName);
+            var client = pool.GetRoundRobin();
+            if (client == null) {
+                Console.WriteLine("No round robin found " + query);
+                //todo idk, maybe tell the caller theres no round robin
+                return;
+            }
+            FowardMessage(client.SocketManager, query, (q) => {
+                respond(q.GetJson<object>());
+            });
+        }
+
+        public void ForwardMessageToPoolAll(Query query, Action<object> respond)
+        {
+            var poolName = query.To;
+            var pool = getPoolByName(poolName);
+            var count = pool.NumberOfClients;
+
+            query.Add("~PoolAllCount~", count.ToString());
+
+            foreach (var socket in pool.GetClientsSockets()) {
+                FowardMessage(socket, query, (q) => {
+                    respond(q.GetJson<object>());
+                });
+            }
+        }
+
+        public bool SendMessage(SocketManager socketManager, Query message, Action<Query> callback)
+        {
+            messageResponses[socketManager.Id + message.RequestKey] = callback;
+
+            if (message.From == null)
+                message.From = socketManager.Id;
+            return socketManager.SendMessage(message);
+        }
+
+        public void Disconnect()
+        {
+            serverManager.Disconnect();
+        }
 
         private Pool getPoolByName(string poolName)
         {
@@ -260,70 +284,6 @@ namespace OnPoolServer
             if (pool == null)
                 pools.Add(pool = new Pool(poolName));
             return pool;
-        }
-
-        public void JoinPool(Client client, string poolName)
-        {
-            var pool = getPoolByName(poolName);
-            if (pool.ContainsClient(client))
-            {
-                return;
-            }
-            pool.AddClient(client);
-
-        }
-
-        public GetClientByPoolResponse GetClientsInPool(string poolName)
-        {
-            var pool = getPoolByName(poolName);
-            return new GetClientByPoolResponse
-            {
-                Clients = pool.GetClientsResponse()
-            };
-        }
-
-        public void ForwardMessageToClient(Query query, Action<Query> respond)
-        {
-            var client = Clients.FirstOrDefault(a => a.Id == query.To);
-            FowardMessage(client?.SocketManager, query, respond);
-        }
-
-        public void ForwardMessageToPool(Query query, Action<Query> respond)
-        {
-            var poolName = query.To;
-            var pool = getPoolByName(poolName);
-            var client = pool.GetRoundRobin();
-            var rQuery = new Query(query);
-            if (client == null)
-            {
-                Console.WriteLine("No round robin found " + query);
-                //todo idk, maybe tell the caller theres no round robin
-                return;
-            }
-            FowardMessage(client.SocketManager, rQuery, (q) =>
-            {
-                respond(q);
-            });
-        }
-
-        public void ForwardMessageToPoolAll(Query query, Action<Query> respond)
-        {
-            var poolName = query.To;
-            var pool = getPoolByName(poolName);
-            var count = pool.NumberOfClients;
-            foreach (var socket in pool.GetClientsSockets())
-            {
-                var rQuery = new Query(query);
-                rQuery.Add("~PoolAllCount~", count.ToString());
-                FowardMessage(socket, rQuery, respond);
-            }
-        }
-
-
-
-        public void Disconnect()
-        {
-            serverManager.Disconnect();
         }
     }
 }

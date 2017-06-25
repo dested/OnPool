@@ -6,18 +6,6 @@ using System.Text;
 
 namespace OnPoolCommon
 {
-    public enum QueryDirection
-    {
-        Request = 1,
-        Response = 2
-    }
-    public enum QueryType
-    {
-        Client = 1,
-        Pool = 2,
-        PoolAll = 3,
-        Server = 4
-    }
     //    [DebuggerStepThrough]
     public class Query
     {
@@ -25,63 +13,39 @@ namespace OnPoolCommon
         public string From { get; set; }
         public QueryType Type { get; set; }
         public QueryDirection Direction { get; set; }
+        public ResponseOptions ResponseOptions { get; set; }
         public string Method { get; set; }
         public string RequestKey { get; set; }
+        private List<QueryParam> QueryParams { get; set; }
 
-        private Query(string method, QueryDirection direction, QueryType type, ResponseOptions responseOptions, params QueryParam[] queryParams)
+        public Query()
         {
-            ResponseOptions = responseOptions;
-            Direction = direction;
-            Type = type;
-            Method = method;
-            QueryParams = queryParams.ToDictionary(a => a.Key, a => a.Value);
-        }
-
-        public Query(Query query)
-        {
-            ResponseOptions = query.ResponseOptions;
-            To = query.To;
-            From = query.From;
-            Method = query.Method;
-            Type = query.Type;
-            RequestKey = query.RequestKey;
-            Direction = query.Direction;
-            QueryParams = new Dictionary<string, string>(query.QueryParams);
-        }
-
-        private Dictionary<string, string> QueryParams { get; }
-        public ResponseOptions ResponseOptions { get; set; }
-
-        public string this[string key]
-        {
-            get { return QueryParams[key]; }
-            set { QueryParams[key] = value; }
+            QueryParams = new List<QueryParam>();
         }
 
         public bool Contains(string key)
         {
-            return QueryParams.ContainsKey(key);
+            return QueryParams.Any(a => a.Key == key);
+        }
+        public string Get(string key)
+        {
+            return QueryParams.FirstOrDefault(a => a.Key == key)?.Value;
         }
 
-        public void Add(string key, string value)
+        public Query Add(string key, string value = "")
         {
-            QueryParams.Add(key, value);
+            QueryParams.Add(new QueryParam(key, value));
+            return this;
         }
-
-        public void Add(string key)
+        public Query AddJson<T>(T obj)
         {
-            QueryParams.Add(key, "");
-        }
-        public void Add(Query query)
-        {
-            foreach (var queryQueryParam in query.QueryParams) {
-                QueryParams.Add(queryQueryParam.Key, queryQueryParam.Value);
-            }
+            QueryParams.Add(new QueryParam("Json", obj.ToJson()));
+            return this;
         }
 
         public void Remove(string key)
         {
-            QueryParams.Remove(key);
+            QueryParams.RemoveAll(a => a.Key == key);
         }
 
         public byte[] GetBytes()
@@ -110,18 +74,6 @@ namespace OnPoolCommon
             return bytes;
         }
 
-        public static Query Build(string method, QueryDirection direction, QueryType type, params QueryParam[] queryParams)
-        {
-            return new Query(method, direction, type, ResponseOptions.SingleResponse, queryParams);
-        }
-
-        public static Query Build<T>(string method, QueryDirection direction, QueryType type, T json, params QueryParam[] queryParams)
-        {
-            var qp = new List<QueryParam> { new QueryParam("Json", json.ToJson()) };
-            qp.AddRange(queryParams);
-            return new Query(method, direction, type, ResponseOptions.SingleResponse, qp.ToArray());
-        }
-
 
         public static Query Parse(byte[] continueBuffer)
         {
@@ -141,7 +93,12 @@ namespace OnPoolCommon
                         qparams.Add(new QueryParam(querySplit[0], Uri.UnescapeDataString(querySplit[1])));
                     }
                 }
-                var query = new Query(messageSplit[0], direction, type, responseOptions, qparams.ToArray());
+                var query = new Query();
+                query.Direction = direction;
+                query.Method = messageSplit[0];
+                query.Type = type;
+                query.ResponseOptions = responseOptions;
+                query.QueryParams = qparams;
                 if (!string.IsNullOrWhiteSpace(pieces[0]))
                     query.To = pieces[0];
                 if (!string.IsNullOrWhiteSpace(pieces[1]))
@@ -191,8 +148,29 @@ namespace OnPoolCommon
         public T GetJson<T>()
         {
             if (Contains("Json"))
-                return QueryParams["Json"].FromJson<T>();
+                return Get("Json").FromJson<T>();
             return default(T);
+        }
+
+        public static Query BuildServerRequest(string method, ResponseOptions options = ResponseOptions.SingleResponse)
+        {
+            return new Query() {
+                Method = method,
+                Direction = QueryDirection.Request,
+                Type = QueryType.Server,
+                ResponseOptions = options
+            };
+
+        }
+        public static Query BuildServerResponse(string method, ResponseOptions options = ResponseOptions.SingleResponse)
+        {
+            return new Query() {
+                Method = method,
+                Direction = QueryDirection.Response,
+                Type = QueryType.Client,
+                ResponseOptions = options
+            };
+
         }
     }
 
@@ -207,15 +185,22 @@ namespace OnPoolCommon
 
         public string Key { get; set; }
         public string Value { get; set; }
-
-        public static QueryParam Json<T>(T t)
-        {
-            return new QueryParam("Json", t.ToJson());
-        }
     }
     public enum ResponseOptions
     {
         SingleResponse = 1,
         OpenResponse = 2
+    }
+    public enum QueryDirection
+    {
+        Request = 1,
+        Response = 2
+    }
+    public enum QueryType
+    {
+        Client = 1,
+        Pool = 2,
+        PoolAll = 3,
+        Server = 4
     }
 }

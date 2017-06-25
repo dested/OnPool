@@ -5,12 +5,12 @@ namespace OnPoolCommon
 {
     internal class WorkerResponse
     {
+        public WorkerResult Result { get; set; }
+        public byte[] Query { get; set; }
+
         private WorkerResponse()
         {
         }
-
-        public WorkerResult Result { get; set; }
-        public byte[] Query { get; set; }
 
         public static WorkerResponse Disconnect()
         {
@@ -21,7 +21,6 @@ namespace OnPoolCommon
         {
             var bytes = new byte[len];
             Buffer.BlockCopy(continueBuffer, 0, bytes, 0, len);
-         
             return new WorkerResponse { Result = WorkerResult.Message, Query = bytes };
         }
     }

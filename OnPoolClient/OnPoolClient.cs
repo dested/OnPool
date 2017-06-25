@@ -6,19 +6,21 @@ using OnPoolCommon.Models;
 
 namespace OnPoolClient
 {
-    public delegate void RespondMessage(params QueryParam[] @params);
+    public delegate void RespondMessage(object payload);
+
     public delegate void OnMessage(Client from, Query message, RespondMessage respond);
 
 
     public class OnPoolClient
     {
+        private SocketManager server;
+
         private readonly Dictionary<string, Action<Query>> messageResponses = new Dictionary<string, Action<Query>>();
         private readonly Dictionary<string, int> poolAllCounter = new Dictionary<string, int>();
+        private readonly List<Client> clients = new List<Client>();
         private readonly List<Pool> pools = new List<Pool>();
 
         private Action onReady;
-        private SocketManager server;
-        private readonly List<Client> clients = new List<Client>();
         private Action onDisconnect;
         private OnMessage onMessage;
 
@@ -30,8 +32,7 @@ namespace OnPoolClient
             server.onReceive += (_, query) => messageProcess(query);
             server.OnDisconnect += _ => onDisconnect?.Invoke();
             server.StartFromClient();
-            GetClientId(id =>
-            {
+            GetClientId(id => {
                 server.Id = id;
                 onReady?.Invoke();
             });
@@ -41,23 +42,29 @@ namespace OnPoolClient
         {
             Client fromClient;
             if (message.From != null)
-                fromClient = getClientById(message.From);
+                fromClient = GetClientById(message.From);
             else
-                fromClient = getClientById(server.Id);
+                fromClient = GetClientById(server.Id);
 
             switch (message.Direction)
             {
                 case QueryDirection.Request:
                     var receiptId = message.RequestKey;
-                    onReceiveMessage(fromClient, message, queryResponse =>
+                    onReceiveMessage(fromClient, message, queryResponse => {
+                        var q = new Query();
+                        q.Method = message.Method;
+                        q.Direction = QueryDirection.Response;
+                        q.Type = message.Type;
+                        q.AddJson(queryResponse);
+                        q.ResponseOptions = message.ResponseOptions;
+                        q.To = fromClient.Id;
+                        q.RequestKey = receiptId;
+                        if (message.Contains("~PoolAllCount~"))
                         {
-                            var q = Query.Build(message.Method, QueryDirection.Response, message.Type, queryResponse);
-                            q.ResponseOptions = message.ResponseOptions;
-                            q.To = fromClient.Id;
-                            q.RequestKey = receiptId;
-                            server.SendMessage(q);
+                            q.Add("~PoolAllCount~", message.Get("~PoolAllCount~"));
                         }
-                    );
+                        server.SendMessage(q);
+                    });
                     break;
                 case QueryDirection.Response:
 
@@ -73,7 +80,7 @@ namespace OnPoolClient
                                 else
                                     poolAllCounter[message.RequestKey] = poolAllCounter[message.RequestKey] + 1;
 
-                                if (poolAllCounter[message.RequestKey] == int.Parse(message["~PoolAllCount~"]))
+                                if (poolAllCounter[message.RequestKey] == int.Parse(message.Get("~PoolAllCount~")))
                                 {
                                     messageResponses.Remove(message.RequestKey);
                                     poolAllCounter.Remove(message.RequestKey);
@@ -84,23 +91,40 @@ namespace OnPoolClient
                                 messageResponses.Remove(message.RequestKey);
                             }
                         }
-                        if (callback != null)
-                            callback(message);
+                        callback?.Invoke(message);
                     }
                     else
                     {
                         throw new Exception("Cannot find response callback");
                     }
-
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
-            }
-
-
+            } 
         }
 
-        private Client getClientById(string id)
+        private void onReceiveMessage(Client from, Query query, RespondMessage respond)
+        {
+            switch (query.Type) {
+                case QueryType.Client:
+                    onMessage?.Invoke(from, query, respond);
+                    return;
+                case QueryType.Pool: {
+                    var pool = pools.FirstOrDefault(a => a.PoolName == query.To);
+                    pool?.ReceiveMessage(from, query, respond);
+                    return;
+                }
+                case QueryType.PoolAll: {
+                    var pool = pools.FirstOrDefault(a => a.PoolName == query.To);
+                    pool?.ReceiveMessage(from, query, respond);
+                }
+                    break;
+                default: throw new Exception("Type not found: " + query);
+            }
+        }
+
+
+        private Client GetClientById(string id)
         {
             var client = clients.FirstOrDefault(a => a.Id == id);
             if (client == null)
@@ -113,12 +137,12 @@ namespace OnPoolClient
 
         public void OnReady(Action callback)
         {
-            onReady = callback;
+            onReady += callback;
         }
 
         public void OnDisconnect(Action callback)
         {
-            onDisconnect = callback;
+            onDisconnect += callback;
         }
 
 
@@ -127,71 +151,100 @@ namespace OnPoolClient
             onMessage += callback;
         }
 
-        private void onReceiveMessage(Client from, Query query, RespondMessage respond)
-        {
-            switch (query.Type)
-            {
-                case QueryType.Client:
-                    onMessage?.Invoke(from, query, respond);
-                    return;
-                case QueryType.Pool:
-                    {
-                        var pool = pools.FirstOrDefault(a => a.PoolName == query.To);
-                        pool?.ReceiveMessage(from, query, respond);
-                        return;
-                    }
-                case QueryType.PoolAll:
-                    {
-                        var pool = pools.FirstOrDefault(a => a.PoolName == query.To);
-                        pool?.ReceiveMessage(from, query, res =>
-                        {
-                            var ql = res.ToList();
-                            ql.Add(new QueryParam("~PoolAllCount~", query["~PoolAllCount~"]));
-                            respond(ql.ToArray());
-                        });
-                    }
-                    break;
-                default: throw new Exception("Type not found: " + query);
-            }
-        }
-
-
-
         public void GetClientId(Action<string> callback)
         {
-            var query = Query.Build("GetClientId", QueryDirection.Request, QueryType.Server);
-            sendMessage(query, response => {
-                callback(response.GetJson<string>());
-            }, ResponseOptions.SingleResponse);
-        }
-
-
-
-        public void SendMessage(string clientId, Query query, Action<Query> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
-        {
-            query.Type = QueryType.Client;
-            query.To = clientId;
-            sendMessage(query, callback, responseOptions);
+            var query = Query.BuildServerRequest("GetClientId");
+            sendMessage(query, callback);
         }
 
         public void GetAllPools(string poolName, Action<GetAllPoolsResponse> callback)
         {
-            var query = Query.Build("GetAllPools", QueryDirection.Request, QueryType.Server);
+            var query = Query.BuildServerRequest("GetAllPools");
 
-            sendMessage(query, response => { callback(response.GetJson<GetAllPoolsResponse>()); }, ResponseOptions.SingleResponse);
+            sendMessage(query, callback);
         }
 
         public void OnPoolUpdated(string poolName, Action<Client[]> callback)
         {
-            var query = Query.Build("OnPoolUpdated", QueryDirection.Request, QueryType.Server,
-                new QueryParam("PoolName", poolName));
-            sendMessage(query, response =>
+            var query = Query.BuildServerRequest("OnPoolUpdated", ResponseOptions.OpenResponse);
+            query.Add("PoolName", poolName);
+
+            sendMessage<GetClientByPoolResponse>(query,
+                response => { callback(response.Clients.Select(a => GetClientById(a.Id)).ToArray()); });
+        } 
+
+        public void GetClients(string poolName, Action<Client[]> callback)
+        {
+            var query = Query.BuildServerRequest("GetClients");
+            query.Add("PoolName", poolName);
+
+            sendMessage<GetClientByPoolResponse>(query,
+                response => { callback(response.Clients.Select(a => GetClientById(a.Id)).ToArray()); });
+        }
+
+        public Pool JoinPool(string poolName)
+        {
+            var pool = new Pool(poolName);
+            this.pools.Add(pool);
+
+            var query = Query.BuildServerRequest("JoinPool");
+            query.Add("PoolName", poolName);
+
+            sendMessage<object>(query);
+            return pool;
+        }
+
+        public void LeavePool(string poolName)
+        {
+            var query = Query.BuildServerRequest("LeavePool");
+            query.Add("PoolName", poolName);
+            sendMessage<object>(query, response => { pools.RemoveAll(a => a.PoolName == poolName); });
+        }
+
+        public void SendClientMessage<T>(string clientId, string method, object payload, Action<T> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        {
+            var query = new Query()
             {
-                callback(response.GetJson<GetClientByPoolResponse>()
-                    .Clients
-                    .Select(a => getClientById(a.Id))
-                    .ToArray());
-            }, ResponseOptions.OpenResponse);
+                Method = method,
+                Direction = QueryDirection.Request,
+                Type = QueryType.Client,
+                To = clientId,
+                ResponseOptions = responseOptions
+            };
+            query.AddJson(payload);
+            query.Type = QueryType.Client;
+            query.To = clientId;
+            sendMessage(query, callback);
+        }
+
+        public void SendPoolMessage<T>(string poolName, string method, object payload, Action<T> callback = null,
+            ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        {
+            var query = new Query()
+            {
+                Method = method,
+                Direction = QueryDirection.Request,
+                Type = QueryType.Pool,
+                To = poolName,
+                ResponseOptions = responseOptions
+            };
+            query.AddJson(payload);
+            sendMessage(query, callback);
+        }
+
+        public void SendAllPoolMessage<T>(string poolName, string method, object payload, Action<T> callback = null,
+            ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        {
+            var query = new Query()
+            {
+                Method = method,
+                Direction = QueryDirection.Request,
+                Type = QueryType.PoolAll,
+                To = poolName,
+                ResponseOptions = responseOptions
+            };
+            query.AddJson(payload);
+            sendMessage(query, callback);
         }
 
         public void Disconnet()
@@ -199,74 +252,15 @@ namespace OnPoolClient
             server.ForceDisconnect();
         }
 
-        public void GetClients(string poolName, Action<Client[]> callback)
-        {
-            var query = Query.Build("GetClients", QueryDirection.Request, QueryType.Server, new QueryParam("PoolName", poolName));
-
-            sendMessage(query, response =>
-            {
-                callback(
-                    response.GetJson<GetClientByPoolResponse>()
-                        .Clients
-                        .Select(a => getClientById(a.Id))
-                        .ToArray()
-                );
-            }, ResponseOptions.SingleResponse);
-        }
-
-        public void JoinPool(string poolName, OnMessage callback)
-        {
-            this.pools.Add(new Pool(poolName, callback));
-            sendMessage(
-                Query.Build("JoinPool", QueryDirection.Request, QueryType.Server, new QueryParam("PoolName", poolName)),
-                response =>
-                {
-                }, ResponseOptions.SingleResponse
-            );
-        }
-
-        public void LeavePool(string poolName)
-        {
-            sendMessage(
-                Query.Build("LeavePool", QueryDirection.Request, QueryType.Server, new QueryParam("PoolName", poolName)),
-                response => {
-                    this.pools.RemoveAll(a => a.PoolName == poolName);
-                    }, ResponseOptions.SingleResponse
-            );
-        }
-
-        public void SendPoolMessage(string poolName, Query query, Action<Query> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
-        {
-            query.To = poolName;
-            query.Type = QueryType.Pool;
-            sendMessage(query, callback, responseOptions);
-        }
-
-        public void SendAllPoolMessage(string poolName, Query query, Action<Query> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
-        {
-            query.To = poolName;
-            query.Type = QueryType.PoolAll;
-            sendMessage(query, callback, responseOptions);
-        }
-
-
-
-
-
-
-
-        internal bool sendMessage(Query query, Action<Query> callback, ResponseOptions responseOptions)
+        internal bool sendMessage<T>(Query query, Action<T> callback = null)
         {
             var responseKey = Guid.NewGuid().ToString("N");
             query.RequestKey = responseKey;
-            query.ResponseOptions = responseOptions;
-            messageResponses[responseKey] = callback;
+            messageResponses[responseKey] = (payload) => { callback?.Invoke(payload.GetJson<T>()); };
 
             if (server.Id != null && query.From == null)
                 query.From = server.Id;
             return server.SendMessage(query);
         }
-
     }
-
 }
