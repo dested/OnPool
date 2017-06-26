@@ -12,11 +12,11 @@ export class OnPoolClient {
     private clients: Client[] = [];
     public socketManager: SocketManager;
 
-    public get MySwimmerId(): string {
+    public get MyClientId(): number {
         return this.socketManager.Id;
     }
-    poolAllCounter: { [key: string]: number } = {};
-    messageResponses: { [key: string]: (message: Message) => void } = {};
+    poolAllCounter: { [key: number]: number } = {};
+    messageResponses: { [key: number]: (message: Message) => void } = {};
 
 
     private onReady: (() => void)[] = [];
@@ -49,7 +49,7 @@ export class OnPoolClient {
                     q.Type = message.Type;
                     q.AddJson(messageResponse);
                     q.ResponseOptions = message.ResponseOptions;
-                    q.To = fromClient.Id;
+                    q.ToClient = fromClient.Id;
                     q.RequestKey = receiptId;
                     if (message.PoolAllCount>-1) {
                         q.PoolAllCount = message.PoolAllCount;
@@ -93,14 +93,14 @@ export class OnPoolClient {
                 return;
             case MessageType.Pool:
                 {
-                    let pool = this.pools.filter(a => a.PoolName === message.To)[0];
+                    let pool = this.pools.filter(a => a.PoolName === message.ToPool)[0];
 
                     pool && pool.ReceiveMessage(from, message, respond);
                     return;
                 }
             case MessageType.PoolAll:
                 {
-                    let pool = this.pools.filter(a => a.PoolName === message.To)[0];
+                    let pool = this.pools.filter(a => a.PoolName === message.ToPool)[0];
                     pool && pool.ReceiveMessage(from, message, respond);
                 }
                 break;
@@ -108,7 +108,7 @@ export class OnPoolClient {
                 throw "Type not found: " + message;
         }
     }
-    private GetClientById(id: string): Client {
+    private GetClientById(id: number): Client {
         let client = this.clients.filter(a => a.Id == id)[0];
         if (!client) {
             client = new Client(id);
@@ -125,7 +125,7 @@ export class OnPoolClient {
     public OnMessage(callback: OnMessage): void {
         this.onMessage.push(callback);
     }
-    public GetClientId(callback: (_: string) => void): void {
+    public GetClientId(callback: (_: number) => void): void {
         const message = Message.BuildServerRequest("GetClientId");
         this.sendMessage(message, callback);
     }
@@ -169,12 +169,12 @@ export class OnPoolClient {
             }
         });
     }
-    public SendClientMessage<T>(clientId: string, method: string, payload: any, callback: (_: T) => void = null, responseOptions: ResponseOptions = ResponseOptions.SingleResponse): void {
+    public SendClientMessage<T>(clientId: number, method: string, payload: any, callback: (_: T) => void = null, responseOptions: ResponseOptions = ResponseOptions.SingleResponse): void {
         const q = new Message();
         q.Method = method;
         q.Direction = MessageDirection.Request;
         q.Type = MessageType.Client;
-        q.To = clientId;
+        q.ToClient = clientId;
         q.ResponseOptions = responseOptions;
         q.AddJson(payload); 
         this.sendMessage(q, callback);
@@ -185,7 +185,7 @@ export class OnPoolClient {
         q.Method = method;
         q.Direction = MessageDirection.Request;
         q.Type = MessageType.Pool;
-        q.To = poolName;
+        q.ToPool = poolName;
         q.ResponseOptions = responseOptions;
         q.AddJson(payload);
         this.sendMessage(q, callback);
@@ -195,7 +195,7 @@ export class OnPoolClient {
         q.Method = method;
         q.Direction = MessageDirection.Request;
         q.Type = MessageType.PoolAll;
-        q.To = poolName;
+        q.ToPool = poolName;
         q.ResponseOptions = responseOptions;
         q.AddJson(payload);
         this.sendMessage(q, callback);
@@ -205,13 +205,25 @@ export class OnPoolClient {
     public Disconnect(): void {
         this.socketManager.ForceDisconnect();
     }
+    private messageCounter: number = 0;
     public sendMessage<T>(message: Message, callback: (_: T) => void = null): boolean {
-        const responseKey = Utils.guid();
-        message.RequestKey = responseKey;
-        this.messageResponses[responseKey] = (payload) => {
+
+        let messageRequestKey:number ;
+        if (this.socketManager.Id == -1)
+        {
+            messageRequestKey = Math.floor(Math.random()*0xFFFFFFFF);
+        }
+        else
+        {
+            messageRequestKey = this.socketManager.Id + (++this.messageCounter % SocketManager.counterWidth);
+        }
+
+
+        message.RequestKey = messageRequestKey;
+        this.messageResponses[messageRequestKey] = (payload) => {
             callback && callback(payload.GetJson<T>());
         };
-        if (this.socketManager.Id != null && message.From == null)
+        if (this.socketManager.Id !== -1 && message.From === -1)
             message.From = this.socketManager.Id;
         return this.socketManager.SendMessage(message);
     }

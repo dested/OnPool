@@ -4,12 +4,13 @@ import { Utils } from "./utils";
 
 
 export class SocketManager {
-    public Id: string;
+    public Id: number=-1;
     private disconnected: boolean = false;
     private serverIp: string;
     socket: net.Socket;
     public OnDisconnect: ((socket: SocketManager) => void)[] = [];
     public onReceive: ((socket: SocketManager, message: Message) => void);
+    static counterWidth: number=1000000000000;
 
     constructor(serverIp: string) {
         this.serverIp = serverIp;
@@ -26,15 +27,20 @@ export class SocketManager {
 
         let continueBuffer = new Uint8Array(1024 * 1024 * 5);
         let bufferIndex = 0;
+        let curPayloadLen: number = -1;
         this.socket.on('data',
             (bytes: Uint8Array) => {
                 for (let j = 0; j < bytes.length; j++) {
                     let b = bytes[j];
-                    if (b === 0) {
+
+                    continueBuffer[bufferIndex++] = b;
+                    if (curPayloadLen===bufferIndex) {
                         this.onReceive(this, Message.Parse(continueBuffer.slice(0, bufferIndex)));
                         bufferIndex = 0;
-                    } else {
-                        continueBuffer[bufferIndex++] = b;
+                        curPayloadLen = -1;
+
+                    } else if (bufferIndex === 4) {
+                        curPayloadLen = Message.ReadBytesInt(continueBuffer, 0);
                     }
                 }
             });
@@ -77,4 +83,5 @@ export class SocketManager {
             this.OnDisconnect[i](this);
         }
     }
+
 }

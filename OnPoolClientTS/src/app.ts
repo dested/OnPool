@@ -18,7 +18,8 @@ if (shouldRunTests) {
                 tc.TestPoolResponse,
                 tc.TestDirectClientResponse,
                 tc.TestAllPoolResponse,
-                tc.TestClientSendObject
+                tc.TestClientSendObject,
+                tc.TestPoolToClient
             ]);
 
         }

@@ -1,11 +1,15 @@
-﻿export class Message {
-    public To: string;
-    public From: string;
+﻿var Int64LE = require("int64-buffer").Int64LE;
+
+
+export class Message {
+    public ToClient: number=-1;
+    public ToPool: string;
+    public From: number=-1;
     public Type: MessageType;
     public Direction: MessageDirection;
     public ResponseOptions: ResponseOptions;
     public Method: string;
-    public RequestKey: string;
+    public RequestKey: number;
     public Json: string;
     public PoolAllCount: number=-1;
 
@@ -19,101 +23,202 @@
     }
 
     public GetBytes(): Uint8Array {
-        let sb = "";
-        if (this.To) sb += (this.To);
-        sb += ("|");
-        if (this.From) sb += (this.From);
-        sb += ("|");
-        if (this.RequestKey) sb += (this.RequestKey);
-        sb += ("|");
-        sb += (this.Method);
-        sb += ("|");
+
+
+        const lengthOfPayload = 4,
+            enums = 4,
+            from = 8,
+            toClient = 8,
+            toPoolLen = 4,
+            methodLen = 4,
+            jsonLen = 4,
+            requestKey = 8,
+            poolAllCount = 4;
+
+        var byteLen = 0;
+        byteLen += lengthOfPayload;
+        byteLen += enums;
+        byteLen += from;
+        switch (this.Type) {
+        case MessageType.Client:
+            byteLen += toClient;
+            break;
+        case MessageType.Pool:
+        case MessageType.PoolAll:
+            byteLen += toPoolLen;
+            if (this.ToPool)
+                byteLen += this.ToPool.length;
+            break;
+        }
+        byteLen += methodLen;
+        byteLen += this.Method.length;
+
+        byteLen += jsonLen;
         if (this.Json) {
-            sb += this.Json.replace(/\|/g,'%`%');
+            byteLen += this.Json.length;
         }
-        sb += ("|");
-        if (this.PoolAllCount > -1) {
-            sb += this.PoolAllCount;
-        }
-        const bytes = new Uint8Array(sb.length + 3 + 1);
-        bytes[0] = <number>this.Direction;
-        bytes[1] = <number>this.Type;
-        bytes[2] = <number>this.ResponseOptions;
 
-        const b = sb.split('').map((x) => x.charCodeAt(0));
+        byteLen += requestKey;
+        byteLen += poolAllCount;
 
-        for (let i = 0; i < b.length; i++) {
-            bytes[i + 3] = b[i];
+
+        var bytes = new Uint8Array(byteLen);
+
+        let cur = 0;
+        this.WriteBytesInt(byteLen, bytes, cur);
+        cur += 4;
+        bytes[cur++] = this.Direction;
+        bytes[cur++] = this.Type;
+        bytes[cur++] = this.ResponseOptions;
+        this.WriteBytesLong(this.From, bytes, cur);
+        cur += 8;
+        switch (this.Type) {
+        case MessageType.Client:
+            this.WriteBytesLong(this.ToClient, bytes, cur);
+            cur += 8;
+            break;
+        case MessageType.Pool:
+        case MessageType.PoolAll:
+            if (this.ToPool != null) {
+                this.WriteBytesInt(this.ToPool.length, bytes, cur);
+            }
+            cur += 4;
+            if (this.ToPool != null) {
+                this.WriteBytesUtf8(this.ToPool, bytes, cur);
+                cur += this.ToPool.length;
+            }
+            break;
         }
+
+        this.WriteBytesInt(this.Method.length, bytes, cur);
+        cur += 4;
+        this.WriteBytesUtf8(this.Method, bytes, cur);
+        cur += this.Method.length;
+
+        if (this.Json != null) {
+            this.WriteBytesInt(this.Json.length, bytes, cur);
+            cur += 4;
+            this.WriteBytesUtf8(this.Json, bytes, cur);
+            cur += this.Json.length;
+        } else {
+            cur += 4;
+        }
+
+        this.WriteBytesLong(this.RequestKey, bytes, cur);
+        cur += 8;
+
+        this.WriteBytesInt(this.PoolAllCount, bytes, cur);
+        cur += 4;
 
         if (bytes.length > 1024 * 1024 * 5) {
             throw "The message is longer than 5mb.";
         }
-
         return bytes;
     }
 
-    public static Parse(continueBuffer: Uint8Array): Message {
+
+    private WriteBytesUtf8(value: string, buffer: Uint8Array, offset: number): void {
+        const b = value.split('').map((x) => x.charCodeAt(0));
+        for (let i = 0; i < b.length; i++) {
+            buffer[i + offset] = b[i];
+        }
+    }
+
+    private static ReadBytesUtf8(buffer: Uint8Array, offset: number, len: number): string {
+        return new Buffer(buffer.slice(offset, offset + len)).toString("utf8");
+    }
+
+    private WriteBytesInt(value: number, buffer: Uint8Array, offset: number): void {
+        for (var index = 0; index < 4; index++) {
+            var byte = value & 0xff;
+            buffer[offset + index] = byte;
+            value = (value - byte) / 256;
+        }
+    }
+    public static ReadBytesInt(uint: Uint8Array, offset: number): number {
+        let dataView = new DataView(uint.buffer, offset);
+        return dataView.getInt32(0,true)
+    }
+
+    private WriteBytesLong(value: number, buffer: Uint8Array, offset: number): void {
+        let buff=new Int64LE(value).toArray()
+        for (var index = 0; index < 8; index++) {
+            buffer[offset + index] = buff[index];
+        }
+    }
+    private static ReadBytesLong(uint: Uint8Array, offset: number): number {
+        let value = new Int64LE(uint,offset).toNumber();
+        return value;
+    }
+     
+
+    public static Parse(bytes: Uint8Array): Message {
         try {
-            const message = new Message();
 
-            message.Direction = <MessageDirection>continueBuffer[0];
-            message.Type = <MessageType>continueBuffer[1];
-            message.ResponseOptions = <ResponseOptions>continueBuffer[2];
-            const pieces = new Buffer(continueBuffer.slice(3)).toString("utf8").split('|');
+            var message = new Message();
 
+            let cur = 4;
 
-            if (pieces[0])
-                message.To = pieces[0];
-            if (pieces[1])
-                message.From = pieces[1];
-            if (pieces[2])
-                message.RequestKey = pieces[2];
-            message.Method = pieces[3];
-            if (pieces[4]) {
-                message.Json = pieces[4].replace(/%`%/g, '|');
+            message.Direction = <MessageDirection>bytes[cur++];
+            message.Type = <MessageType>bytes[cur++];
+            message.ResponseOptions = <ResponseOptions>bytes[cur++];
+            message.From = this.ReadBytesLong(bytes, cur);
+            cur += 8;
+
+            switch (message.Type) {
+            case MessageType.Client:
+                    message.ToClient = this.ReadBytesLong(bytes, cur);
+                cur += 8;
+                break;
+            case MessageType.Pool:
+            case MessageType.PoolAll:
+                    var toPoolLength = this.ReadBytesInt(bytes, cur);
+                cur += 4;
+                message.ToPool = this.ReadBytesUtf8(bytes, cur, toPoolLength);
+                cur += toPoolLength;
+                break;
             }
-            if (pieces[5]) {
-                message.PoolAllCount = parseInt(pieces[5]);
+
+
+            var methodLength = this.ReadBytesInt(bytes, cur);
+            cur += 4;
+            message.Method = this.ReadBytesUtf8(bytes, cur, methodLength);
+            cur += methodLength;
+
+            var jsonLength = this.ReadBytesInt(bytes, cur);
+            cur += 4;
+
+            if (jsonLength > 0) {
+                message.Json = this.ReadBytesUtf8(bytes, cur, jsonLength);
+                cur += jsonLength;
             }
+
+            message.RequestKey = this.ReadBytesLong(bytes, cur);
+            cur += 8;
+            message.PoolAllCount = this.ReadBytesInt(bytes, cur);
+            cur += 4;
 
             return message;
+
+
+ 
         } catch (ex) {
             console.log("Failed Receive message:");
-            console.log(`${new Buffer(continueBuffer).toString("utf8")}`);
+            console.log(`${new Buffer(bytes).toString("utf8")}`);
             console.log(`${ex}`);
             return null;
         }
 
     }
 
-    public static BuildServerRequest(method: string, options: ResponseOptions = ResponseOptions.SingleResponse): Message {
+    public static BuildServerRequest(method: string,
+        options: ResponseOptions = ResponseOptions.SingleResponse): Message {
         let q = new Message();
         q.Method = method;
         q.Direction = MessageDirection.Request;
         q.Type = MessageType.Server;
         q.ResponseOptions = options;
         return q;
-    }
-
-    public ToString(): string {
-        let sb = "";
-        sb += (this.Method);
-        sb += ("?");
-        sb += "Json=" + encodeURIComponent(this.Json) + "&";
-        sb += "PoolAllCount=" + this.PoolAllCount;
-        sb += (this.Direction);
-        sb += ("/");
-        sb += (this.Type);
-        sb += ("|");
-        sb += (this.To);
-        sb += ("|");
-        sb += (this.From);
-        sb += ("|");
-        sb += (this.RequestKey);
-        sb += ("|");
-        sb += (this.ResponseOptions);
-        return sb;
     }
 
     public GetJson<T>(): T {

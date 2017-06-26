@@ -243,6 +243,42 @@ export class Tests {
             });
         });
     }
+    public TestPoolToClient(success: () => void, testFail: (reason: string) => void): void {
+        const poolName = Utils.guid();
+        let id1 = -1;
+        let id2 = -1;
+        this.BuildClient(manager1 => {
+            manager1.OnReady(() => {
+                id1 = manager1.MyClientId;
+
+                manager1.JoinPool(poolName).OnMessage((from, message, respond) => {
+                    this.assertAreEqual(from.Id, id2, testFail);
+                    this.assertAreEqual(message.Method, "Baz", testFail);
+                    this.assertAreEqual(message.GetJson<number>(), 13, testFail);
+                    manager1.SendClientMessage(from.Id, "Biz", testFail);
+                });
+
+                this. BuildClient(manager2 => {
+                    manager2.OnMessage((from, message, respond) => {
+                        this.assertAreEqual(from.Id, id1,testFail);
+                        this.assertAreEqual(message.Method, "Biz", testFail);
+                        respond(null);
+                        success();
+                    });
+
+                    manager2.OnReady(() => {
+                        id2 = manager2.MyClientId;
+                        manager2.OnPoolUpdated(poolName, (clients) => {
+                            if (clients.length == 1) {
+                                manager2.SendPoolMessage(poolName, "Baz", 13);
+                            }
+                        });
+                    });
+                });
+            });
+        });
+
+    }
 
     public TestDirectClientResponse(success: () => void, testFail: (reason: string) => void): void {
         const poolName = Utils.guid();

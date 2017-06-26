@@ -285,13 +285,31 @@ namespace OnPoolClient
             Action<Message> messageResponse = (payload) => { callback?.Invoke(payload.GetJson<T>()); };
             lock (messageLocker)
             {
-                var messageRequestKey = this.socketManager.Id + (++messageCounter % SocketManager.counterWidth);
+                long messageRequestKey ;
+                if (this.socketManager.Id == -1)
+                {
+                    messageRequestKey = LongRandom();
+                }
+                else
+                {
+                    messageRequestKey = this.socketManager.Id + (++messageCounter % SocketManager.counterWidth);
+                }
+
                 message.RequestKey = messageRequestKey;
                 messageResponses[messageRequestKey] = messageResponse;
             }
             if (socketManager.Id != -1 && message.From == -1)
                 message.From = socketManager.Id;
             return socketManager.SendMessage(message);
+        }
+
+        Random rand=new Random();
+        long LongRandom()
+        {
+            byte[] buf = new byte[8];
+            rand.NextBytes(buf);
+            long longRand = BitConverter.ToInt64(buf, 0);
+            return longRand;
         }
     }
 }

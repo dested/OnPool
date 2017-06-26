@@ -32,37 +32,92 @@ namespace OnPoolCommon
 
         public byte[] GetBytes()
         {
-            var sb = new StringBuilder();
-            if (ToClient != -1)
+
+            const int lengthOfPayload = 4, enums = 4, from = 8, toClient = 8, toPoolLen = 4, methodLen = 4, jsonLen = 4, requestKey = 8, poolAllCount = 4;
+
+            var byteLen = 0;
+            byteLen += lengthOfPayload;
+            byteLen += enums;
+            byteLen += from;
+            switch (Type)
             {
-                sb.Append(ToClient);
+                case MessageType.Client:
+                    byteLen += toClient;
+                    break;
+                case MessageType.Pool:
+                case MessageType.PoolAll:
+                    byteLen += toPoolLen;
+                    if (ToPool != null)
+                        byteLen += ToPool.Length;
+                    break;
             }
-            else if (!string.IsNullOrEmpty(ToPool))
-            {
-                sb.Append(ToPool);
-            }
-            sb.Append("|");
-            sb.Append(From);
-            sb.Append("|");
-            sb.Append(RequestKey);
-            sb.Append("|");
-            sb.Append(Method);
-            sb.Append("|");
+            byteLen += methodLen;
+            byteLen += Method.Length;
+
+            byteLen += jsonLen;
             if (Json != null)
             {
-                sb.Append(Json.Replace("|", "%`%"));
-            }
-            sb.Append("|");
-            if (PoolAllCount > -1)
-            {
-                sb.Append(PoolAllCount);
+                byteLen += Json.Length;
             }
 
-            var bytes = new byte[sb.Length + 3 + 1];
-            bytes[0] = (byte)Direction;
-            bytes[1] = (byte)Type;
-            bytes[2] = (byte)ResponseOptions;
-            Encoding.UTF8.GetBytes(sb.ToString(), 0, sb.Length, bytes, 3);
+            byteLen += requestKey;
+            byteLen += poolAllCount;
+
+
+            var bytes = new byte[byteLen];
+
+            int cur = 0;
+            WriteBytes(byteLen, bytes, cur);
+            cur += 4;
+            bytes[cur++] = (byte)Direction;
+            bytes[cur++] = (byte)Type;
+            bytes[cur++] = (byte)ResponseOptions;
+            WriteBytes(From, bytes, cur);
+            cur += 8;
+            switch (Type)
+            {
+                case MessageType.Client:
+                    WriteBytes(ToClient, bytes, cur);
+                    cur += 8;
+                    break;
+                case MessageType.Pool:
+                case MessageType.PoolAll:
+                    if (ToPool != null)
+                    {
+                        WriteBytes(ToPool.Length, bytes, cur);
+                    }
+                    cur += 4;
+                    if (ToPool != null)
+                    {
+                        Encoding.UTF8.GetBytes(ToPool, 0, ToPool.Length, bytes, cur);
+                        cur += ToPool.Length;
+                    }
+                    break;
+            }
+
+            WriteBytes(Method.Length, bytes, cur);
+            cur += 4;
+            Encoding.UTF8.GetBytes(Method, 0, Method.Length, bytes, cur);
+            cur += Method.Length;
+
+            if (Json != null)
+            {
+                WriteBytes(Json.Length, bytes, cur);
+                cur += 4;
+                Encoding.UTF8.GetBytes(Json, 0, Json.Length, bytes, cur);
+                cur += Json.Length;
+            }
+            else
+            {
+                cur += 4;
+            }
+
+            WriteBytes(RequestKey, bytes, cur);
+            cur += 8;
+
+            WriteBytes(PoolAllCount, bytes, cur);
+            cur += 4;
+
             if (bytes.Length > 1024 * 1024 * 5)
             {
                 throw new ArgumentException("The message is longer than 5mb.");
@@ -70,56 +125,72 @@ namespace OnPoolCommon
             return bytes;
         }
 
+        private static unsafe void WriteBytes(int value, byte[] buffer, int offset)
+        {
+            fixed (byte* numPtr = &buffer[offset])
+                *(int*)numPtr = value;
+        }
+        private static unsafe void WriteBytes(long value, byte[] buffer, int offset)
+        {
+            fixed (byte* numPtr = &buffer[offset])
+                *(long*)numPtr = value;
+        }
 
-        public static Message Parse(byte[] continueBuffer)
+        public static Message Parse(byte[] bytes)
         {
             try
             {
-                var pieces = Encoding.UTF8.GetString(continueBuffer, 3, continueBuffer.Length - 3).Split('|');
                 var message = new Message();
-                message.ToClient = -1;
 
-                message.Direction = (MessageDirection)continueBuffer[0];
-                message.Type = (MessageType)continueBuffer[1];
-                message.ResponseOptions = (ResponseOptions)continueBuffer[2];
+                int cur = 4;
 
+                message.Direction = (MessageDirection)bytes[cur++];
+                message.Type = (MessageType)bytes[cur++];
+                message.ResponseOptions = (ResponseOptions)bytes[cur++];
+                message.From = BitConverter.ToInt64(bytes, cur);
+                cur += 8;
 
-                if (!string.IsNullOrWhiteSpace(pieces[0]))
+                switch (message.Type)
                 {
-                    switch (message.Type)
-                    {
-                        case MessageType.Client:
-                            message.ToClient = long.Parse(pieces[0]);
-                            break;
-                        case MessageType.Pool:
-                        case MessageType.PoolAll:
-                            message.ToPool = pieces[0];
-                            break;
-                    }
+                    case MessageType.Client:
+                        message.ToClient = BitConverter.ToInt64(bytes, cur);
+                        cur += 8;
+                        break;
+                    case MessageType.Pool:
+                    case MessageType.PoolAll:
+                        var toPoolLength = BitConverter.ToInt32(bytes, cur);
+                        cur += 4;
+                        message.ToPool = Encoding.UTF8.GetString(bytes, cur, toPoolLength);
+                        cur += toPoolLength;
+                        break;
                 }
 
 
-                if (!string.IsNullOrWhiteSpace(pieces[1]))
-                    message.From = long.Parse(pieces[1]);
-                else
-                    message.From = -1;
+                var methodLength = BitConverter.ToInt32(bytes, cur);
+                cur += 4;
+                message.Method = Encoding.UTF8.GetString(bytes, cur, methodLength);
+                cur += methodLength;
 
-                message.RequestKey = long.Parse(pieces[2]);
+                var jsonLength = BitConverter.ToInt32(bytes, cur);
+                cur += 4;
 
-                message.Method = pieces[3];
+                if (jsonLength > 0)
+                {
+                    message.Json = Encoding.UTF8.GetString(bytes, cur, jsonLength);
+                    cur += jsonLength;
+                }
 
-                if (!string.IsNullOrWhiteSpace(pieces[4]))
-                    message.Json = pieces[4].Replace("%`%", "|");
-
-                if (!string.IsNullOrWhiteSpace(pieces[5]))
-                    message.PoolAllCount = int.Parse(pieces[5]);
+                message.RequestKey = BitConverter.ToInt64(bytes, cur);
+                cur += 8;
+                message.PoolAllCount = BitConverter.ToInt32(bytes, cur);
+                cur += 4;
 
                 return message;
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Failed Receive message:");
-                Console.WriteLine($"{Encoding.UTF8.GetString(continueBuffer)}");
+                Console.WriteLine($"{Encoding.UTF8.GetString(bytes)}");
                 Console.WriteLine($"{ex}");
                 return null;
             }

@@ -26,9 +26,9 @@ export class Pool {
 }
 
 export class Client {
-    public Id: string;
+    public Id: number;
 
-    constructor(clientId: string) {
+    constructor(clientId: number) {
         this.Id = clientId;
     }
 }

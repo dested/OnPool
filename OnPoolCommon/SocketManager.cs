@@ -165,6 +165,7 @@ namespace OnPoolCommon
                 var bytes = new byte[256];
                 byte[] continueBuffer = new byte[1024 * 1024 * 5];
                 int bufferIndex = 0;
+                int curPayloadLen = -1;
                 while (true)
                 {
                     while ((i = socket.Receive(bytes)) != 0)
@@ -172,17 +173,18 @@ namespace OnPoolCommon
                         for (var j = 0; j < i; j++)
                         {
                             var b = bytes[j];
-
-                            if (b == 0)
+                            continueBuffer[bufferIndex++] = b;
+                            if (curPayloadLen == bufferIndex)
                             {
                                 var response = WorkerResponse.FromMessage(continueBuffer, bufferIndex);
                                 if (response != null)
                                     worker.SendResponse(response);
                                 bufferIndex = 0;
+                                curPayloadLen = -1;
                             }
-                            else
+                            else if (bufferIndex == 4)
                             {
-                                continueBuffer[bufferIndex++] = b;
+                                curPayloadLen = BitConverter.ToInt32(continueBuffer, 0);
                             }
                         }
                     }
