@@ -44,6 +44,12 @@ namespace OnPoolCommon
                 case MessageType.Client:
                     byteLen += toClient;
                     break;
+                case MessageType.ClientPool:
+                    byteLen += toClient;
+                    byteLen += toPoolLen;
+                    if (ToPool != null)
+                        byteLen += ToPool.Length;
+                    break;
                 case MessageType.Pool:
                 case MessageType.PoolAll:
                     byteLen += toPoolLen;
@@ -79,6 +85,23 @@ namespace OnPoolCommon
                 case MessageType.Client:
                     WriteBytes(ToClient, bytes, cur);
                     cur += 8;
+                    break;
+
+                case MessageType.ClientPool:
+                    WriteBytes(ToClient, bytes, cur);
+                    cur += 8;
+
+                    if (ToPool != null)
+                    {
+                        WriteBytes(ToPool.Length, bytes, cur);
+                    }
+                    cur += 4;
+                    if (ToPool != null)
+                    {
+                        Encoding.UTF8.GetBytes(ToPool, 0, ToPool.Length, bytes, cur);
+                        cur += ToPool.Length;
+                    }
+
                     break;
                 case MessageType.Pool:
                 case MessageType.PoolAll:
@@ -153,16 +176,33 @@ namespace OnPoolCommon
                 switch (message.Type)
                 {
                     case MessageType.Client:
+                    {
                         message.ToClient = BitConverter.ToInt64(bytes, cur);
                         cur += 8;
                         break;
-                    case MessageType.Pool:
-                    case MessageType.PoolAll:
+
+                    }
+                    case MessageType.ClientPool:
+                    {
+                        message.ToClient = BitConverter.ToInt64(bytes, cur);
+                        cur += 8;
+
                         var toPoolLength = BitConverter.ToInt32(bytes, cur);
                         cur += 4;
                         message.ToPool = Encoding.UTF8.GetString(bytes, cur, toPoolLength);
                         cur += toPoolLength;
                         break;
+
+                    }
+                    case MessageType.Pool:
+                    case MessageType.PoolAll:
+                    {
+                        var toPoolLength = BitConverter.ToInt32(bytes, cur);
+                        cur += 4;
+                        message.ToPool = Encoding.UTF8.GetString(bytes, cur, toPoolLength);
+                        cur += toPoolLength;
+                        break;
+                    }
                 }
 
 
@@ -242,8 +282,9 @@ namespace OnPoolCommon
     public enum MessageType
     {
         Client = 1,
-        Pool = 2,
-        PoolAll = 3,
-        Server = 4
+        ClientPool=2,
+        Pool = 3,
+        PoolAll = 4,
+        Server = 5
     }
 }

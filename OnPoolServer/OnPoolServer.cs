@@ -128,6 +128,9 @@ namespace OnPoolServer
                 case MessageType.Pool:
                     ForwardMessageToPool(message, respond);
                     break;
+                case MessageType.ClientPool:
+                    ForwardMessageToClientPool(message, respond);
+                    break;
                 case MessageType.PoolAll:
                     ForwardMessageToPoolAll(message, respond);
                     break;
@@ -277,6 +280,12 @@ namespace OnPoolServer
                 return;
             }
             FowardMessage(client.SocketManager, message, (q) => { respond(q.GetJson<object>()); });
+        }
+
+        public void ForwardMessageToClientPool(Message message, Action<object> respond)
+        {
+            var client = clients.FirstOrDefault(a => a.Id == message.ToClient);
+            FowardMessage(client?.SocketManager, message, (q) => { respond(q.GetJson<object>()); });
         }
 
         public void ForwardMessageToPoolAll(Message message, Action<object> respond)

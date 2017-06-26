@@ -4,4 +4,10 @@ namespace OnPoolCommon.Models
     {
         public string[] PoolNames { get; set; }
     }
+
+    public class ClientPingResponse
+    {
+        public long ClientId { get; set; }
+    }
+
 }

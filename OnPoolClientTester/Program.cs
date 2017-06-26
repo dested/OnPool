@@ -39,6 +39,7 @@ namespace OnPoolClientTester
                     tests.AddRange(new Action<Action>[]
                     {
 //                        tc.TestEveryone,
+                        tc.TestFastestPool,
                         tc.TestLeavePool,
                         tc.TestOnPoolUpdatedResponse,
                         tc.TestOnPoolDisconnectedResponse,

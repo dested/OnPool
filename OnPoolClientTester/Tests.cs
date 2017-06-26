@@ -162,6 +162,40 @@ namespace OnPoolClientTester
         }
 
 
+        public void TestFastestPool(Action success)
+        {
+            var poolName = Guid.NewGuid().ToString("N");
+            var total = 100;
+            for (var i = 0; i < total; i++)
+            {
+                BuildClient(manager => {
+                    manager.OnReady(() => {
+                        manager.JoinPool(poolName).OnMessage((from, message, respond) => {
+                            Assert.AreEqual(message.Method, "Bar");
+                            Assert.AreEqual(message.GetJson<int>(), 13);
+                            respond(14);
+                        });
+                    });
+                });
+            }
+
+
+            BuildClient(manager => {
+                manager.OnReady(() => {
+                    manager.OnPoolUpdated(poolName, (clients) => {
+                        if (clients.Length == total)
+                        {
+                            manager.SendPoolFastestMessage<int>(poolName, "Bar", 13, m => {
+                                    Assert.AreEqual(m, 14);
+                                    success();
+                                }
+                            );
+                        }
+                    });
+                });
+            });
+        }
+
         public void TestClientResponse(Action success)
         {
             var poolName = Guid.NewGuid().ToString("N");

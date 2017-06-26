@@ -115,11 +115,26 @@ namespace OnPoolClient
 
         private void onReceiveMessage(Client from, Message message, RespondMessage respond)
         {
+            switch (message.Method)
+            {
+                case "Ping":
+                    respond(new ClientPingResponse() { ClientId = MyClientId });
+                    return;
+            }
+
             switch (message.Type)
             {
                 case MessageType.Client:
-                    onMessage?.Invoke(from, message, respond);
-                    return;
+                    {
+                        onMessage?.Invoke(from, message, respond);
+                        return;
+                    }
+                case MessageType.ClientPool:
+                    {
+                        var pool = pools.FirstOrDefault(a => a.PoolName == message.ToPool);
+                        pool?.ReceiveMessage(from, message, respond);
+                        return;
+                    }
                 case MessageType.Pool:
                     {
                         var pool = pools.FirstOrDefault(a => a.PoolName == message.ToPool);
@@ -227,6 +242,20 @@ namespace OnPoolClient
             message.AddJson(payload);
             sendMessage(message, callback);
         }
+        public void SendClientPoolMessage<T>(long clientId, string poolName, string method, object payload = null, Action<T> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        {
+            var message = new Message()
+            {
+                Method = method,
+                Direction = MessageDirection.Request,
+                Type = MessageType.ClientPool,
+                ToClient = clientId,
+                ToPool = poolName,
+                ResponseOptions = responseOptions
+            };
+            message.AddJson(payload);
+            sendMessage(message, callback);
+        }
 
         public void SendPoolMessage<T>(string poolName, string method, object payload = null, Action<T> callback = null,
             ResponseOptions responseOptions = ResponseOptions.SingleResponse)
@@ -241,6 +270,24 @@ namespace OnPoolClient
             };
             message.AddJson(payload);
             sendMessage(message, callback);
+        }
+        public void SendPoolFastestMessage<T>(string poolName, string method, object payload = null, Action<T> callback = null)
+        {
+            var message = new Message()
+            {
+                Method = "Ping",
+                Direction = MessageDirection.Request,
+                Type = MessageType.PoolAll,
+                ToPool = poolName,
+                ResponseOptions = ResponseOptions.SingleResponse
+            };
+            bool first = false;
+            sendMessage<ClientPingResponse>(message, (r) =>
+            {
+                if (first) return;
+                first = true;
+                SendClientPoolMessage(r.ClientId,poolName, method, payload, callback);
+            });
         }
 
         public void SendAllPoolMessage<T>(string poolName, string method, object payload = null, Action<T> callback = null,
@@ -285,7 +332,7 @@ namespace OnPoolClient
             Action<Message> messageResponse = (payload) => { callback?.Invoke(payload.GetJson<T>()); };
             lock (messageLocker)
             {
-                long messageRequestKey ;
+                long messageRequestKey;
                 if (this.socketManager.Id == -1)
                 {
                     messageRequestKey = LongRandom();
@@ -303,7 +350,7 @@ namespace OnPoolClient
             return socketManager.SendMessage(message);
         }
 
-        Random rand=new Random();
+        Random rand = new Random();
         long LongRandom()
         {
             byte[] buf = new byte[8];

@@ -43,6 +43,13 @@ export class Message {
         case MessageType.Client:
             byteLen += toClient;
             break;
+        case MessageType.ClientPool:
+            byteLen += toClient;
+
+            byteLen += toPoolLen;
+            if (this.ToPool)
+                byteLen += this.ToPool.length;
+            break;
         case MessageType.Pool:
         case MessageType.PoolAll:
             byteLen += toPoolLen;
@@ -76,6 +83,18 @@ export class Message {
         case MessageType.Client:
             this.WriteBytesLong(this.ToClient, bytes, cur);
             cur += 8;
+            break;
+        case MessageType.ClientPool:
+            this.WriteBytesLong(this.ToClient, bytes, cur);
+            cur += 8;
+            if (this.ToPool != null) {
+                this.WriteBytesInt(this.ToPool.length, bytes, cur);
+            }
+            cur += 4;
+            if (this.ToPool != null) {
+                this.WriteBytesUtf8(this.ToPool, bytes, cur);
+                cur += this.ToPool.length;
+            }
             break;
         case MessageType.Pool:
         case MessageType.PoolAll:
@@ -135,22 +154,24 @@ export class Message {
             value = (value - byte) / 256;
         }
     }
+
     public static ReadBytesInt(uint: Uint8Array, offset: number): number {
         let dataView = new DataView(uint.buffer, offset);
-        return dataView.getInt32(0,true)
+        return dataView.getInt32(0, true)
     }
 
     private WriteBytesLong(value: number, buffer: Uint8Array, offset: number): void {
-        let buff=new Int64LE(value).toArray()
+        let buff = new Int64LE(value).toArray()
         for (var index = 0; index < 8; index++) {
             buffer[offset + index] = buff[index];
         }
     }
+
     private static ReadBytesLong(uint: Uint8Array, offset: number): number {
-        let value = new Int64LE(uint,offset).toNumber();
+        let value = new Int64LE(uint, offset).toNumber();
         return value;
     }
-     
+
 
     public static Parse(bytes: Uint8Array): Message {
         try {
@@ -167,15 +188,29 @@ export class Message {
 
             switch (message.Type) {
             case MessageType.Client:
-                    message.ToClient = this.ReadBytesLong(bytes, cur);
+            {
+                message.ToClient = this.ReadBytesLong(bytes, cur);
                 cur += 8;
+                break;
+            }
+            case MessageType.ClientPool:
+                {
+                    message.ToClient = this.ReadBytesLong(bytes, cur);
+                    cur += 8;
+                    let toPoolLength = this.ReadBytesInt(bytes, cur);
+                    cur += 4;
+                    message.ToPool = this.ReadBytesUtf8(bytes, cur, toPoolLength);
+                    cur += toPoolLength;
+                }
                 break;
             case MessageType.Pool:
             case MessageType.PoolAll:
-                    var toPoolLength = this.ReadBytesInt(bytes, cur);
-                cur += 4;
-                message.ToPool = this.ReadBytesUtf8(bytes, cur, toPoolLength);
-                cur += toPoolLength;
+                {
+                    let toPoolLength = this.ReadBytesInt(bytes, cur);
+                    cur += 4;
+                    message.ToPool = this.ReadBytesUtf8(bytes, cur, toPoolLength);
+                    cur += toPoolLength;
+                }
                 break;
             }
 
@@ -201,7 +236,6 @@ export class Message {
             return message;
 
 
- 
         } catch (ex) {
             console.log("Failed Receive message:");
             console.log(`${new Buffer(bytes).toString("utf8")}`);
@@ -240,7 +274,9 @@ export enum MessageDirection {
 
 export enum MessageType {
     Client = 1,
-    Pool = 2,
-    PoolAll = 3,
-    Server = 4
+    ClientPool = 2,
+    Pool = 3,
+    PoolAll = 4,
+    Server = 5,
+
 }

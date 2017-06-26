@@ -392,6 +392,36 @@ export class Tests {
             });
         });
     }
+
+    public TestFastestPool(success: () => void, testFail: (reason: string) => void): void {
+        const poolName = Utils.guid();
+        var total = 100;
+        for (var i = 0; i < total; i++) {
+            this.  BuildClient(manager => {
+                manager.OnReady(() => {
+                    manager.JoinPool(poolName).OnMessage((from, message, respond) => {
+                        this.assertAreEqual(message.Method, "Bar", testFail);
+                        this.assertAreEqual(message.GetJson<number>(), 13, testFail);
+                        respond(14);
+                    });
+                });
+            });
+        }
+       this. BuildClient(manager => {
+            manager.OnReady(() => {
+                manager.OnPoolUpdated(poolName, (clients) => {
+                    if (clients.length == total) {
+                        manager.SendPoolFastestMessage<number>(poolName, "Bar", 13, m => {
+                            this.assertAreEqual(m, 14, testFail);
+                            success();
+                        });
+                    }
+                });
+            });
+        });
+    }
+
+
     public TestSlammer(success: () => void, testFail: (reason: string) => void): void {
         console.log("Started Slammer");
         const poolName = Utils.guid();
