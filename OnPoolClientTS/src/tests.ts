@@ -27,7 +27,7 @@ export class Tests {
                             success();
                         }
                     }
-                    else if (clients.length == 2) {
+                    else if (clients.length === 2) {
                         m2.LeavePool(poolName);
                     }
                 });
@@ -41,6 +41,7 @@ export class Tests {
             });
         });
     }
+
     public TestOnPoolUpdatedResponse(success: () => void, testFail: (reason: string) => void): void {
         const poolName = Utils.guid();
         this.BuildClient(manager1 => {

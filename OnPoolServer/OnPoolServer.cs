@@ -46,13 +46,11 @@ namespace OnPoolServer
                         q.Method = message.Method;
                         q.Direction = MessageDirection.Response;
                         q.Type = message.Type;
+                        q.From = message.From;
                         q.ResponseOptions = message.ResponseOptions;
                         q.ToClient = fromClient.Id;
                         q.RequestKey = receiptId;
-                        if (message.PoolAllCount > -1)
-                        {
-                            q.PoolAllCount = message.PoolAllCount;
-                        }
+                        q.PoolAllCount = message.PoolAllCount;
                         q.AddJson(messageResponse);
                         socketManager.SendMessage(q);
                     }
@@ -60,7 +58,7 @@ namespace OnPoolServer
 
                     break;
                 case MessageDirection.Response:
-                    var clientMessageResponses = ClientMessageResponses(socketManager.Id);
+                    var clientMessageResponses = ClientMessageResponses(message.From);
                     if (clientMessageResponses.ContainsKey(message.RequestKey))
                     {
                         var callback = clientMessageResponses[message.RequestKey];
@@ -68,7 +66,7 @@ namespace OnPoolServer
                         {
                             if (message.PoolAllCount > -1)
                             {
-                                var clientPoolAllCount = ClientPoolAllCount(socketManager.Id);
+                                var clientPoolAllCount = ClientPoolAllCount(message.From);
 
                                 if (!clientPoolAllCount.ContainsKey(message.RequestKey))
                                     clientPoolAllCount[message.RequestKey] = 1;
@@ -254,10 +252,12 @@ namespace OnPoolServer
             }
 
             var responseKey = message.RequestKey;
-            ClientMessageResponses(socketManager.Id)[responseKey] = callback;
 
             if (message.From == -1)
                 message.From = socketManager.Id;
+
+            ClientMessageResponses(message.From)[responseKey] = callback;
+
 
             return socketManager.SendMessage(message);
         }
@@ -304,10 +304,12 @@ namespace OnPoolServer
 
         public bool SendMessage(SocketManager socketManager, Message message, Action<Message> callback)
         {
-            ClientMessageResponses(socketManager.Id)[message.RequestKey] = callback;
 
             if (message.From == -1)
                 message.From = socketManager.Id;
+
+            ClientMessageResponses(message.From)[message.RequestKey] = callback;
+
             return socketManager.SendMessage(message);
         }
 

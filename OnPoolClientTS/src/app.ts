@@ -11,6 +11,7 @@ if (shouldRunTests) {
         for (let i: number = 0; i < 10; i++) {
             tests.push(...[
 //                tc.TestEveryone,
+//                tc.Test100ClientsAll,
                 tc.TestFastestPool,
                 tc.TestLeavePool,
                 tc.TestOnPoolUpdatedResponse,

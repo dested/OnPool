@@ -74,7 +74,7 @@ namespace OnPoolServer
 
         public IEnumerable<SocketManager> GetClientsSockets()
         {
-            return clients.Select(a => a.SocketManager);
+            return clients.Select(a => a.SocketManager).ToArray();
         }
     }
 }

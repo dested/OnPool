@@ -49,14 +49,14 @@ export class OnPoolClient {
                     const q = new Message();
                     q.Method = message.Method;
                     q.Direction = MessageDirection.Response;
+                    q.From = message.From;
                     q.Type = message.Type;
-                    q.AddJson(messageResponse);
                     q.ResponseOptions = message.ResponseOptions;
                     q.ToClient = fromClient.Id;
                     q.RequestKey = receiptId;
-                    if (message.PoolAllCount > -1) {
-                        q.PoolAllCount = message.PoolAllCount;
-                    }
+                    q.PoolAllCount = message.PoolAllCount;
+                    q.AddJson(messageResponse);
+
                     this.socketManager.SendMessage(q);
                 });
             break;
