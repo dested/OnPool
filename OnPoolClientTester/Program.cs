@@ -46,7 +46,8 @@ namespace OnPoolClientTester
                         tc.TestPoolResponse,
                         tc.TestDirectClientResponse,
                         tc.TestAllPoolResponse,
-                        tc.TestClientSendObject
+                        tc.TestClientSendObject,
+                        tc.TestPoolToClient
                     });
                 }
                 tests.Add(tc.TestSlammer);

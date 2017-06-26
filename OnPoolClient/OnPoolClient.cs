@@ -16,8 +16,8 @@ namespace OnPoolClient
     {
         private SocketManager socketManager;
         private readonly object messageLocker = new object();
-        private readonly Dictionary<string, Action<Message>> messageResponses = new Dictionary<string, Action<Message>>();
-        private readonly Dictionary<string, int> poolAllCounter = new Dictionary<string, int>();
+        private readonly Dictionary<long, Action<Message>> messageResponses = new Dictionary<long, Action<Message>>();
+        private readonly Dictionary<long, int> poolAllCounter = new Dictionary<long, int>();
         private readonly List<Client> clients = new List<Client>();
         private readonly List<Pool> pools = new List<Pool>();
 
@@ -25,7 +25,7 @@ namespace OnPoolClient
         private Action onDisconnect;
         private OnMessage onMessage;
 
-        public string MyClientId => socketManager.Id;
+        public long MyClientId => socketManager.Id;
         public void SetSerializerSettings(JsonSerializerSettings settings)
         {
             JsonExtensions.SetSerializerSettings(settings);
@@ -46,11 +46,7 @@ namespace OnPoolClient
 
         private void messageProcess(Message message)
         {
-            Client fromClient;
-            if (message.From != null)
-                fromClient = GetClientById(message.From);
-            else
-                fromClient = GetClientById(socketManager.Id);
+            Client fromClient = GetClientById(message.From != -1 ? message.From : socketManager.Id);
 
             switch (message.Direction)
             {
@@ -64,7 +60,7 @@ namespace OnPoolClient
                         q.Type = message.Type;
                         q.AddJson(messageResponse);
                         q.ResponseOptions = message.ResponseOptions;
-                        q.To = fromClient.Id;
+                        q.ToClient = fromClient.Id;
                         q.RequestKey = receiptId;
                         if (message.PoolAllCount != -1)
                         {
@@ -126,13 +122,13 @@ namespace OnPoolClient
                     return;
                 case MessageType.Pool:
                     {
-                        var pool = pools.FirstOrDefault(a => a.PoolName == message.To);
+                        var pool = pools.FirstOrDefault(a => a.PoolName == message.ToPool);
                         pool?.ReceiveMessage(from, message, respond);
                         return;
                     }
                 case MessageType.PoolAll:
                     {
-                        var pool = pools.FirstOrDefault(a => a.PoolName == message.To);
+                        var pool = pools.FirstOrDefault(a => a.PoolName == message.ToPool);
                         pool?.ReceiveMessage(from, message, respond);
                     }
                     break;
@@ -141,7 +137,7 @@ namespace OnPoolClient
         }
 
 
-        private Client GetClientById(string id)
+        private Client GetClientById(long id)
         {
             var client = clients.FirstOrDefault(a => a.Id == id);
             if (client == null)
@@ -168,7 +164,7 @@ namespace OnPoolClient
             onMessage += callback;
         }
 
-        public void GetClientId(Action<string> callback)
+        public void GetClientId(Action<long> callback)
         {
             var message = Message.BuildServerRequest("GetClientId");
             sendMessage(message, callback);
@@ -218,14 +214,14 @@ namespace OnPoolClient
             sendMessage<object>(message, response => { pools.RemoveAll(a => a.PoolName == poolName); });
         }
 
-        public void SendClientMessage<T>(string clientId, string method, object payload = null, Action<T> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        public void SendClientMessage<T>(long clientId, string method, object payload = null, Action<T> callback = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
             var message = new Message()
             {
                 Method = method,
                 Direction = MessageDirection.Request,
                 Type = MessageType.Client,
-                To = clientId,
+                ToClient = clientId,
                 ResponseOptions = responseOptions
             };
             message.AddJson(payload);
@@ -240,7 +236,7 @@ namespace OnPoolClient
                 Method = method,
                 Direction = MessageDirection.Request,
                 Type = MessageType.Pool,
-                To = poolName,
+                ToPool = poolName,
                 ResponseOptions = responseOptions
             };
             message.AddJson(payload);
@@ -255,7 +251,7 @@ namespace OnPoolClient
                 Method = method,
                 Direction = MessageDirection.Request,
                 Type = MessageType.PoolAll,
-                To = poolName,
+                ToPool = poolName,
                 ResponseOptions = responseOptions
             };
             message.AddJson(payload);
@@ -263,7 +259,7 @@ namespace OnPoolClient
         }
 
 
-        public void SendClientMessage(string clientId, string method, object payload = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
+        public void SendClientMessage(long clientId, string method, object payload = null, ResponseOptions responseOptions = ResponseOptions.SingleResponse)
         {
             this.SendClientMessage<object>(clientId, method, payload, null, responseOptions);
         }
@@ -283,16 +279,17 @@ namespace OnPoolClient
             socketManager.ForceDisconnect();
         }
 
+        private long messageCounter = 0;
         internal bool sendMessage<T>(Message message, Action<T> callback = null)
         {
-            var responseKey = Guid.NewGuid().ToString("N");
-            message.RequestKey = responseKey;
             Action<Message> messageResponse = (payload) => { callback?.Invoke(payload.GetJson<T>()); };
             lock (messageLocker)
             {
-                messageResponses[responseKey] = messageResponse;
+                var messageRequestKey = this.socketManager.Id + (++messageCounter % SocketManager.counterWidth);
+                message.RequestKey = messageRequestKey;
+                messageResponses[messageRequestKey] = messageResponse;
             }
-            if (socketManager.Id != null && message.From == null)
+            if (socketManager.Id != -1 && message.From == -1)
                 message.From = socketManager.Id;
             return socketManager.SendMessage(message);
         }

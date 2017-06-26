@@ -6,9 +6,9 @@ namespace OnPoolServer
     public class Client
     {
         public SocketManager SocketManager { get; }
-        public string Id { get; set; }
+        public long Id { get; set; }
 
-        public Client(SocketManager socketManager, string clientId)
+        public Client(SocketManager socketManager, long clientId)
         {
             SocketManager = socketManager;
             Id = clientId;

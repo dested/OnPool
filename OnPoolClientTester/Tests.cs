@@ -27,13 +27,16 @@ namespace OnPoolClientTester
                 manager1.OnReady(() => {
                     int hitCount = 0;
                     manager1.OnPoolUpdated(poolName, (clients) => {
-                        if (clients.Length == 1) {
+                        if (clients.Length == 1)
+                        {
                             hitCount++;
-                            if (hitCount == 2) {
+                            if (hitCount == 2)
+                            {
                                 success();
                             }
                         }
-                        else if (clients.Length == 2) {
+                        else if (clients.Length == 2)
+                        {
                             m2.LeavePool(poolName);
                         }
                     });
@@ -56,7 +59,8 @@ namespace OnPoolClientTester
                     int hitCount = 0;
                     manager1.OnPoolUpdated(poolName, (clients) => {
                         hitCount++;
-                        if (hitCount == 4) {
+                        if (hitCount == 4)
+                        {
                             success();
                         }
                     });
@@ -85,9 +89,11 @@ namespace OnPoolClientTester
                 manager1.OnReady(() => {
                     int hitCount = 0;
                     manager1.OnPoolUpdated(poolName, (clients) => {
-                        if (clients.Length == 0) {
+                        if (clients.Length == 0)
+                        {
                             hitCount++;
-                            if (hitCount == 2) {
+                            if (hitCount == 2)
+                            {
                                 success();
                             }
                         }
@@ -109,6 +115,45 @@ namespace OnPoolClientTester
                                         });
                                     });
                                 });
+                            });
+                        });
+                    });
+                });
+            });
+        }
+
+        public void TestPoolToClient(Action success)
+        {
+            var poolName = Guid.NewGuid().ToString("N");
+
+            long id1 = -1;
+            long id2 = -1;
+            BuildClient(manager1 => {
+                manager1.OnReady(() => {
+                    id1 = manager1.MyClientId;
+
+                    manager1.JoinPool(poolName).OnMessage((from, message, respond) => {
+                        Assert.AreEqual(from.Id, id2);
+                        Assert.AreEqual(message.Method, "Baz");
+                        Assert.AreEqual(message.GetJson<int>(), 13);
+                        manager1.SendClientMessage(from.Id, "Biz");
+                    });
+
+                    BuildClient(manager2 => {
+                        manager2.OnMessage((from, message, respond) => {
+                            Assert.AreEqual(from.Id, id1);
+                            Assert.AreEqual(message.Method, "Biz");
+                            respond(null);
+                            success();
+                        });
+
+                        manager2.OnReady(() => {
+                            id2 = manager2.MyClientId;
+                            manager2.OnPoolUpdated(poolName, (clients) => {
+                                if (clients.Length == 1)
+                                {
+                                    manager2.SendPoolMessage(poolName, "Baz", 13);
+                                }
                             });
                         });
                     });
@@ -143,7 +188,8 @@ namespace OnPoolClientTester
                                 manager3.OnReady(() => {
                                     manager3.JoinPool(poolName);
                                     manager3.OnPoolUpdated(poolName, (clients) => {
-                                        if (clients.Length == 3) {
+                                        if (clients.Length == 3)
+                                        {
                                             var count = 0;
                                             manager3.SendClientMessage<string>(clients[0].Id,
                                                 "Baz",
@@ -183,12 +229,14 @@ namespace OnPoolClientTester
                 manager1.OnReady(() => {
                     manager1.JoinPool(poolName).OnMessage((from, message, respond) => {
                         Assert.AreEqual(message.Method, "Baz");
-                        if (poolHit == 0) {
+                        if (poolHit == 0)
+                        {
                             poolHit++;
                             Assert.AreEqual(message.GetJson<int>(), 12);
                             respond(13);
                         }
-                        else {
+                        else
+                        {
                             Assert.AreEqual(message.GetJson<int>(), 14);
                             respond(15);
                         }
@@ -205,7 +253,8 @@ namespace OnPoolClientTester
                             BuildClient(manager3 => {
                                 manager3.OnReady(() => {
                                     manager3.OnPoolUpdated(poolName, (clients) => {
-                                        if (clients.Length == 2) {
+                                        if (clients.Length == 2)
+                                        {
                                             var countHit = 0;
                                             manager3.SendPoolMessage<int>(poolName, "Baz", 12,
                                                 m => {
@@ -243,7 +292,7 @@ namespace OnPoolClientTester
                         var payload = message.GetJson<Payload>();
                         Assert.AreEqual(payload.Foo, "hello");
                         Assert.AreEqual(payload.Bar, "Elido");
-                        respond(new Payload() { Foo = "hi", Bar = "ashley" });
+                        respond(new Payload() {Foo = "hi", Bar = "ashley"});
                     });
 
                     manager1.JoinPool(poolName);
@@ -251,9 +300,10 @@ namespace OnPoolClientTester
                     BuildClient(manager2 => {
                         manager2.OnReady(() => {
                             manager1.OnPoolUpdated(poolName, clients => {
-                                if (clients.Length == 1) {
+                                if (clients.Length == 1)
+                                {
                                     var swim = clients.First();
-                                    manager2.SendClientMessage<Payload>(swim.Id, "Hi", new Payload() { Foo = "hello", Bar = "Elido" },
+                                    manager2.SendClientMessage<Payload>(swim.Id, "Hi", new Payload() {Foo = "hello", Bar = "Elido"},
                                         q => {
                                             Assert.AreEqual(q.Foo, "hi");
                                             Assert.AreEqual(q.Bar, "ashley");
@@ -290,7 +340,8 @@ namespace OnPoolClientTester
                     BuildClient(manager2 => {
                         manager2.OnReady(() => {
                             manager1.OnPoolUpdated(poolName, clients => {
-                                if (clients.Length == 1) {
+                                if (clients.Length == 1)
+                                {
                                     var swim = clients.First();
                                     manager2.SendClientMessage<int>(swim.Id, "Hi", 12,
                                         q => {
@@ -328,13 +379,14 @@ namespace OnPoolClientTester
                             BuildClient(manager3 => {
                                 manager3.OnReady(() => {
                                     manager3.OnPoolUpdated(poolName, (clients) => {
-                                        if (clients.Length == 2) {
+                                        if (clients.Length == 2)
+                                        {
                                             var countHit = 0;
                                             manager3.SendAllPoolMessage<int>(poolName, "Bar", 13, m => {
-                                                Assert.AreEqual(m, 14);
-                                                countHit++;
-                                                if (countHit == 2) success();
-                                            }
+                                                    Assert.AreEqual(m, 14);
+                                                    countHit++;
+                                                    if (countHit == 2) success();
+                                                }
                                             );
                                         }
                                     });
@@ -350,7 +402,8 @@ namespace OnPoolClientTester
         {
             var poolName = Guid.NewGuid().ToString("N");
             var total = 100;
-            for (var i = 0; i < total; i++) {
+            for (var i = 0; i < total; i++)
+            {
                 BuildClient(manager => {
                     manager.OnReady(() => {
                         manager.JoinPool(poolName).OnMessage((from, message, respond) => {
@@ -366,13 +419,14 @@ namespace OnPoolClientTester
             BuildClient(manager => {
                 manager.OnReady(() => {
                     manager.OnPoolUpdated(poolName, (clients) => {
-                        if (clients.Length == total) {
+                        if (clients.Length == total)
+                        {
                             var countHit = 0;
                             manager.SendAllPoolMessage<int>(poolName, "Bar", 13, m => {
-                                Assert.AreEqual(m, 14);
-                                countHit++;
-                                if (countHit == 100) success();
-                            }
+                                    Assert.AreEqual(m, 14);
+                                    countHit++;
+                                    if (countHit == 100) success();
+                                }
                             );
                         }
                     });
@@ -387,12 +441,15 @@ namespace OnPoolClientTester
             BuildClient(manager => {
                 manager.OnReady(() => {
                     manager.OnPoolUpdated("Everyone", (clients) => {
-                        if (clients.Length == 1) {
-                            for (var i = 0; i < total; i++) {
+                        if (clients.Length == 1)
+                        {
+                            for (var i = 0; i < total; i++)
+                            {
                                 BuildClient(m => { });
                             }
                         }
-                        else if (clients.Length == total) {
+                        else if (clients.Length == total)
+                        {
                             success();
                         }
                     });
@@ -406,7 +463,8 @@ namespace OnPoolClientTester
             Console.WriteLine("Started Slammer");
             var poolName = Guid.NewGuid().ToString("N");
             var total = 10;
-            for (var i = 0; i < total; i++) {
+            for (var i = 0; i < total; i++)
+            {
                 BuildClient(manager => {
                     manager.OnReady(() => {
                         manager.JoinPool(poolName).OnMessage((from, message, respond) => {
@@ -422,13 +480,14 @@ namespace OnPoolClientTester
             BuildClient(manager => {
                 manager.OnReady(() => {
                     manager.OnPoolUpdated(poolName, (clients) => {
-                        if (clients.Length == total) {
+                        if (clients.Length == total)
+                        {
                             Action exec = null;
                             exec = () => {
                                 manager.SendPoolMessage<int>(poolName, "Bar", 13, m => {
-                                    Assert.AreEqual(m, 14);
-                                    exec();
-                                }
+                                        Assert.AreEqual(m, 14);
+                                        exec();
+                                    }
                                 );
                             };
                             exec();

@@ -29,9 +29,9 @@ namespace OnPoolClient
 
     public class Client
     {
-        public string Id { get; set; }
+        public long Id { get; set; }
 
-        public Client(string clientId)
+        public Client(long clientId)
         {
             Id = clientId;
         }

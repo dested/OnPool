@@ -8,7 +8,7 @@ namespace OnPoolServer
 {
     public class Pool
     {
-        private readonly Dictionary<string, Action> onClientChange = new Dictionary<string, Action>();
+        private readonly Dictionary<long, Action> onClientChange = new Dictionary<long, Action>();
         private readonly List<Client> clients = new List<Client>();
         private int roundRobin;
 

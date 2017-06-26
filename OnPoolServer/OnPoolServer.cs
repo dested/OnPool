@@ -12,8 +12,8 @@ namespace OnPoolServer
         private readonly List<Pool> pools = new List<Pool>();
         private readonly ClientListener serverManager;
 
-        private readonly Dictionary<string, Dictionary<string, Action<Message>>> messageResponses = new Dictionary<string, Dictionary<string, Action<Message>>>();
-        private readonly Dictionary<string, Dictionary<string, int>> poolAllCounter = new Dictionary<string, Dictionary<string, int>>();
+        private readonly Dictionary<long, Dictionary<long, Action<Message>>> messageResponses = new Dictionary<long, Dictionary<long, Action<Message>>>();
+        private readonly Dictionary<long, Dictionary<long, int>> poolAllCounter = new Dictionary<long, Dictionary<long, int>>();
 
         public OnPoolServer()
         {
@@ -35,7 +35,6 @@ namespace OnPoolServer
         {
             Client fromClient = GetClient(socketManager.Id);
 
-
             switch (message.Direction)
             {
                 case MessageDirection.Request:
@@ -48,7 +47,7 @@ namespace OnPoolServer
                         q.Direction = MessageDirection.Response;
                         q.Type = message.Type;
                         q.ResponseOptions = message.ResponseOptions;
-                        q.To = fromClient.Id;
+                        q.ToClient = fromClient.Id;
                         q.RequestKey = receiptId;
                         if (message.PoolAllCount > -1)
                         {
@@ -60,7 +59,7 @@ namespace OnPoolServer
                     );
 
                     break;
-                case MessageDirection.Response: 
+                case MessageDirection.Response:
                     var clientMessageResponses = ClientMessageResponses(socketManager.Id);
                     if (clientMessageResponses.ContainsKey(message.RequestKey))
                     {
@@ -100,21 +99,21 @@ namespace OnPoolServer
             }
         }
 
-        private Dictionary<string, Action<Message>> ClientMessageResponses(string id)
+        private Dictionary<long, Action<Message>> ClientMessageResponses(long id)
         {
-            Dictionary<string, Action<Message>> result;
+            Dictionary<long, Action<Message>> result;
             if (!messageResponses.TryGetValue(id, out result))
             {
-                messageResponses[id] = result = new Dictionary<string, Action<Message>>();
+                messageResponses[id] = result = new Dictionary<long, Action<Message>>();
             }
             return result;
         }
-        private Dictionary<string, int> ClientPoolAllCount(string id)
+        private Dictionary<long, int> ClientPoolAllCount(long id)
         {
-            Dictionary<string, int> result;
+            Dictionary<long, int> result;
             if (!poolAllCounter.TryGetValue(id, out result))
             {
-                poolAllCounter[id] = result = new Dictionary<string, int>();
+                poolAllCounter[id] = result = new Dictionary<long, int>();
             }
             return result;
         }
@@ -201,7 +200,7 @@ namespace OnPoolServer
             };
         }
 
-        public Client GetClient(string id)
+        public Client GetClient(long id)
         {
             return clients.FirstOrDefault(a => a.Id == id);
         }
@@ -254,7 +253,7 @@ namespace OnPoolServer
             var responseKey = message.RequestKey;
             ClientMessageResponses(socketManager.Id)[responseKey] = callback;
 
-            if (message.From == null)
+            if (message.From == -1)
                 message.From = socketManager.Id;
 
             return socketManager.SendMessage(message);
@@ -262,13 +261,13 @@ namespace OnPoolServer
 
         public void ForwardMessageToClient(Message message, Action<object> respond)
         {
-            var client = clients.FirstOrDefault(a => a.Id == message.To);
+            var client = clients.FirstOrDefault(a => a.Id == message.ToClient);
             FowardMessage(client?.SocketManager, message, (q) => { respond(q.GetJson<object>()); });
         }
 
         public void ForwardMessageToPool(Message message, Action<object> respond)
         {
-            var poolName = message.To;
+            var poolName = message.ToPool;
             var pool = getPoolByName(poolName);
             var client = pool.GetRoundRobin();
             if (client == null)
@@ -282,7 +281,7 @@ namespace OnPoolServer
 
         public void ForwardMessageToPoolAll(Message message, Action<object> respond)
         {
-            var poolName = message.To;
+            var poolName = message.ToPool;
             var pool = getPoolByName(poolName);
             var count = pool.NumberOfClients;
 
@@ -298,7 +297,7 @@ namespace OnPoolServer
         {
             ClientMessageResponses(socketManager.Id)[message.RequestKey] = callback;
 
-            if (message.From == null)
+            if (message.From == -1)
                 message.From = socketManager.Id;
             return socketManager.SendMessage(message);
         }

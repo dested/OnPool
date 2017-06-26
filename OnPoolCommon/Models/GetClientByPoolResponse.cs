@@ -6,6 +6,6 @@ namespace OnPoolCommon.Models
     }
     public class ClientResponse
     {
-        public string Id { get; set; }
+        public long Id { get; set; }
     }
 }

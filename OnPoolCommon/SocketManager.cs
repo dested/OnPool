@@ -9,7 +9,7 @@ using System.Net.Sockets;
 
 namespace OnPoolCommon
 {
-//    [DebuggerStepThrough]
+    //    [DebuggerStepThrough]
     public class SocketManager
     {
         private LocalBackgroundWorker<object, WorkerResponse> awaitMessagesWorker;
@@ -17,15 +17,20 @@ namespace OnPoolCommon
         private readonly string serverIp;
         private Socket socket;
 
-        public static int Counter;
+        public static long Counter;
         public Action<SocketManager, Message> onReceive;
-        public string Id { get; set; }
+        public long Id { get; set; } = -1;
         public Action<SocketManager> OnDisconnect { get; set; }
-
+        private static long idCounter = 0;
+        private object idCounterLock = new object();
+        public static long counterWidth = 1000000000000;
         public SocketManager(Socket socket)
         {
             this.socket = socket;
-            Id = Guid.NewGuid().ToString("N");
+            lock (idCounterLock)
+            {
+                Id = idCounter += counterWidth;
+            }
 #if DUMP
             Console.WriteLine("Connected Client " + Id);
 #endif
@@ -39,7 +44,7 @@ namespace OnPoolCommon
         public void StartFromClient()
         {
             socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            socket.Connect(serverIp,1987);
+            socket.Connect(serverIp, 1987);
             Start();
         }
 
@@ -57,9 +62,11 @@ namespace OnPoolCommon
 
         private void ReceiveResponse(WorkerResponse response)
         {
-            try {
+            try
+            {
                 Counter++;
-                switch (response.Result) {
+                switch (response.Result)
+                {
                     case WorkerResult.Message:
                         var message = Message.Parse(response.Message);
 #if DUMP
@@ -74,7 +81,8 @@ namespace OnPoolCommon
                         throw new ArgumentOutOfRangeException();
                 }
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 Console.WriteLine("Failed Process message:");
                 Console.WriteLine($"{ex}");
             }
@@ -88,11 +96,13 @@ namespace OnPoolCommon
             disconnected = true;
             OnDisconnect?.Invoke(this);
             awaitMessagesWorker.Dispose();
-            try {
+            try
+            {
                 //                socket.Shutdown(SocketShutdown.Both);
                 socket.Close();
             }
-            catch (SocketException) {
+            catch (SocketException)
+            {
 
             }
 #if DUMP
@@ -105,19 +115,23 @@ namespace OnPoolCommon
 #if DUMP
             Console.WriteLine("Send " + message);
 #endif
-            if (!socket.Connected) {
+            if (!socket.Connected)
+            {
                 Disconnect();
                 return false;
             }
 
-            try {
+            try
+            {
                 socket.Send(message.GetBytes());
             }
-            catch (SocketException) {
+            catch (SocketException)
+            {
                 Disconnect();
                 return false;
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 Console.WriteLine($"Send exception: {ex}");
                 Disconnect();
                 return false;
@@ -129,13 +143,15 @@ namespace OnPoolCommon
         private bool Thread_IsConnected()
         {
             if (socket.Connected)
-                if (socket.Poll(1, SelectMode.SelectRead)) {
+                if (socket.Poll(1, SelectMode.SelectRead))
+                {
                     var buffer = new byte[1];
                     if (socket.Receive(buffer, SocketFlags.Peek) == 0)
                         return false;
                     return true;
                 }
-                else {
+                else
+                {
                     return false;
                 }
             return false;
@@ -143,24 +159,29 @@ namespace OnPoolCommon
 
         private void Thread_MonitorStream(LocalBackgroundWorker<object, WorkerResponse> worker)
         {
-            try {
+            try
+            {
                 int i;
                 var bytes = new byte[256];
                 byte[] continueBuffer = new byte[1024 * 1024 * 5];
                 int bufferIndex = 0;
-                while (true) {
-                    while ((i = socket.Receive(bytes)) != 0) {
-                        for (var j = 0; j < i; j++) {
+                while (true)
+                {
+                    while ((i = socket.Receive(bytes)) != 0)
+                    {
+                        for (var j = 0; j < i; j++)
+                        {
                             var b = bytes[j];
 
-
-                            if (b == 0) {
+                            if (b == 0)
+                            {
                                 var response = WorkerResponse.FromMessage(continueBuffer, bufferIndex);
                                 if (response != null)
                                     worker.SendResponse(response);
                                 bufferIndex = 0;
                             }
-                            else {
+                            else
+                            {
                                 continueBuffer[bufferIndex++] = b;
                             }
                         }
@@ -171,16 +192,20 @@ namespace OnPoolCommon
                     break;
                 }
             }
-            catch (IOException) {
+            catch (IOException)
+            {
                 Thread_Disconnected(worker);
             }
-            catch (SocketException) {
+            catch (SocketException)
+            {
                 Thread_Disconnected(worker);
             }
-            catch (ObjectDisposedException) {
+            catch (ObjectDisposedException)
+            {
                 Thread_Disconnected(worker);
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 Console.WriteLine($"Receive Exception: {ex}");
                 Thread_Disconnected(worker);
             }

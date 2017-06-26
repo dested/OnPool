@@ -9,13 +9,14 @@ namespace OnPoolCommon
     //    [DebuggerStepThrough]
     public class Message
     {
-        public string To { get; set; }
-        public string From { get; set; }
+        public long ToClient { get; set; } = -1;
+        public string ToPool { get; set; }
+        public long From { get; set; } = -1;
         public MessageType Type { get; set; }
         public MessageDirection Direction { get; set; }
         public ResponseOptions ResponseOptions { get; set; }
         public string Method { get; set; }
-        public string RequestKey { get; set; }
+        public long RequestKey { get; set; }
         public string Json { get; set; }
         public int PoolAllCount { get; set; } = -1;
 
@@ -28,10 +29,18 @@ namespace OnPoolCommon
             Json = obj.ToJson();
             return this;
         }
+
         public byte[] GetBytes()
         {
             var sb = new StringBuilder();
-            sb.Append(To);
+            if (ToClient != -1)
+            {
+                sb.Append(ToClient);
+            }
+            else if (!string.IsNullOrEmpty(ToPool))
+            {
+                sb.Append(ToPool);
+            }
             sb.Append("|");
             sb.Append(From);
             sb.Append("|");
@@ -41,7 +50,7 @@ namespace OnPoolCommon
             sb.Append("|");
             if (Json != null)
             {
-                sb.Append(Json.Replace("|","%`%"));
+                sb.Append(Json.Replace("|", "%`%"));
             }
             sb.Append("|");
             if (PoolAllCount > -1)
@@ -68,27 +77,42 @@ namespace OnPoolCommon
             {
                 var pieces = Encoding.UTF8.GetString(continueBuffer, 3, continueBuffer.Length - 3).Split('|');
                 var message = new Message();
-
-                if (!string.IsNullOrWhiteSpace(pieces[0]))
-                    message.To = pieces[0];
-
-                if (!string.IsNullOrWhiteSpace(pieces[1]))
-                    message.From = pieces[1];
-
-                if (!string.IsNullOrWhiteSpace(pieces[2]))
-                    message.RequestKey = pieces[2];
-
-                message.Method = pieces[3];
-
-                if (!string.IsNullOrWhiteSpace(pieces[4]))
-                    message.Json = pieces[4].Replace("%`%","|");
-
-                if (!string.IsNullOrWhiteSpace(pieces[5]))
-                    message.PoolAllCount = int.Parse(pieces[5]);
+                message.ToClient = -1;
 
                 message.Direction = (MessageDirection)continueBuffer[0];
                 message.Type = (MessageType)continueBuffer[1];
                 message.ResponseOptions = (ResponseOptions)continueBuffer[2];
+
+
+                if (!string.IsNullOrWhiteSpace(pieces[0]))
+                {
+                    switch (message.Type)
+                    {
+                        case MessageType.Client:
+                            message.ToClient = long.Parse(pieces[0]);
+                            break;
+                        case MessageType.Pool:
+                        case MessageType.PoolAll:
+                            message.ToPool = pieces[0];
+                            break;
+                    }
+                }
+
+
+                if (!string.IsNullOrWhiteSpace(pieces[1]))
+                    message.From = long.Parse(pieces[1]);
+                else
+                    message.From = -1;
+
+                message.RequestKey = long.Parse(pieces[2]);
+
+                message.Method = pieces[3];
+
+                if (!string.IsNullOrWhiteSpace(pieces[4]))
+                    message.Json = pieces[4].Replace("%`%", "|");
+
+                if (!string.IsNullOrWhiteSpace(pieces[5]))
+                    message.PoolAllCount = int.Parse(pieces[5]);
 
                 return message;
             }
@@ -100,28 +124,6 @@ namespace OnPoolCommon
                 return null;
             }
         }
-
-
-        public override string ToString()
-        {
-            var sb = new StringBuilder();
-
-            sb.Append(Method);
-            sb.Append("?");
-            sb.Append(Direction);
-            sb.Append("/");
-            sb.Append(Type);
-            sb.Append("|");
-            sb.Append(To);
-            sb.Append("|");
-            sb.Append(From);
-            sb.Append("|");
-            sb.Append(RequestKey);
-            sb.Append("|");
-            sb.Append(ResponseOptions);
-            return sb.ToString();
-        }
-
 
         public T GetJson<T>()
         {
