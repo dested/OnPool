@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+
+<package>
+    <metadata>
+        <id>com.dested.onPoolClient</id>
+        <version>$version$</version>
+        <title>$title$</title>
+        <authors>dested</authors>
+        <owners>dested</owners>
+        <projectUrl>https://github.com/dested/OnPool</projectUrl>
+        <iconUrl>https://avatars3.githubusercontent.com/u/822784?s=400</iconUrl>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>$description$</description>
+        <releaseNotes></releaseNotes>
+        <copyright>Copyright 2017</copyright>
+        <tags>Redis</tags>
+    </metadata>
+</package>

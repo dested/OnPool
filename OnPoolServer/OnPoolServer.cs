@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using OnPoolCommon;
 using OnPoolCommon.Models;
 
@@ -18,6 +20,17 @@ namespace OnPoolServer
         public OnPoolServer()
         {
             var threadManager = LocalThreadManager.Start();
+
+            Task.Run(() => {
+                while (true)
+                {
+                    Thread.Sleep(1000);
+                    Console.WriteLine($"Messages Per Second: {SocketManager.Counter} Open Pools: {pools.Count} Connected Clients: {clients.Count}");
+                    SocketManager.Counter = 0;
+                }
+            });
+
+
             serverManager = new ClientListener(socket =>
             {
                 var socketManager = new SocketManager(socket);
